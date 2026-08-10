@@ -7,8 +7,8 @@ import { createServer } from '../src/server.js'
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/plans')
 
-async function withServer(fn) {
-  const server = createServer({ plansDir: FIXTURES, watch: false })
+async function withServer(fn, options = {}) {
+  const server = createServer({ plansDir: FIXTURES, watch: false, ...options })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${server.address().port}`
   try {
@@ -25,6 +25,19 @@ test('GET / serves the page as HTML', async () => {
 
     assert.equal(res.status, 200)
     assert.match(res.headers.get('content-type'), /text\/html/)
+  })
+})
+
+test('the page and its assets are sent no-store, so a reload really reloads', async () => {
+  // A pinned tab caching an old app.js against a new server is not hypothetical: it produced a 400
+  // when the client POSTed a request shape the server had stopped accepting.
+  await withServer(async (base) => {
+    for (const path of ['/', '/static/app.js', '/static/style.css']) {
+      const res = await fetch(`${base}${path}`)
+
+      assert.equal(res.status, 200, path)
+      assert.match(res.headers.get('cache-control') ?? '', /no-store/, path)
+    }
   })
 })
 

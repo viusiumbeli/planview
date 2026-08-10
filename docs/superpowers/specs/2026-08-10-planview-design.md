@@ -74,6 +74,10 @@ planview            | COMD-1348 - Prevent thread bl... [x] lock view | ON THIS P
 | `src/server.js` | Node `http`. `/` page, `/api/plans` tree JSON, `/api/plan?id=` raw markdown, `/events` SSE. |
 | `public/app.js` | Tree + pane rendering, plan header, outline + scroll-spy, lock/show-all/seen state, SSE subscription. |
 | `public/outline.js` | Heading slugs and de-duplicated anchor ids. Pure — takes `{level, text}`, not DOM nodes — so it is testable without a DOM. |
+| `src/pending.js` | Which agterm session is blocked on which plan, plus the single-use token. Pure, in memory, takes `now`. |
+| `src/prompt.js` | Reads the `Ready to code?` prompt out of a terminal buffer and works out the keystrokes for a chosen option. Pure, and fails closed. |
+| `src/agterm.js` | The IO half: `agtermctl session text` / `session type`, spawned with an argv array and no shell. |
+| `hooks/plan-pending.sh` | Claude Code hook that reports the plan↔session pairing when the approval prompt appears. |
 | `public/vendor/` | `marked.min.js`, `highlight.min.js` — committed, no runtime npm install. |
 | `bin/planview` | `start` / `stop` / `status`; `start --install` writes the launchd plist. |
 
@@ -83,6 +87,57 @@ Markdown is rendered client-side; the server only ever ships raw text.
 
 `fs.watch` → debounce → `scan()` → SSE `{"type":"changed"}` → client refetches `/api/plans` → if
 unlocked and the newest id changed, fetch `/api/plan?id=` and render. The client never polls.
+
+## Approving from the browser
+
+Reading a plan in the browser and approving it in the terminal means finding one session among ~19.
+planview cannot make that mapping itself: a plan file is named after the first user prompt, a session
+after its task, and every idle session in `agtermctl tree --json` reports the same
+`foreground: ["claude"]`. Only code running *inside* the blocked session knows both halves.
+
+```
+ExitPlanMode --> hook (in the session) --> POST /api/pending {planId, agtermSessionId}
+                 prints nothing, exits 0 --> the terminal prompt still appears
+browser click --> POST /api/approve --> session text (is "Ready to code?" still up?)
+                                    --> session type "<arrows><CR>"
+```
+
+Design constraints that shaped it:
+
+- **The hook must be invisible to the agent.** A `PreToolUse` hook's stdout is parsed as a permission
+  decision, so it prints nothing and always exits 0. The terminal remains the source of truth and can
+  still answer the prompt itself.
+- **The options are read off the live terminal, never hardcoded.** The first version guessed them and
+  shipped a button (`Approve + auto-accept edits`) that matched nothing on screen — the real prompt
+  offered `Yes, and use auto mode` and `Tell Claude what to change`. The wording varies with build and
+  context, so the browser renders whatever `session text` reports and sends back the ordinal it
+  clicked plus the label it displayed; a label that no longer matches is refused.
+- **Rows are identified by their ordinal, not their wording.** An earlier `^Yes|No` filter silently
+  dropped `Tell Claude what to change`, which would have corrupted every arrow distance past it. The
+  parser now requires the ordinals to run `1..n` and refuses otherwise.
+- **There are no digit hotkeys**; the list is arrow-driven, so choosing means moving the cursor from
+  where it currently is and pressing Enter. That needs the cursor position, so a buffer without
+  exactly one visible `❯` is treated as undrivable. Verified against a real capture
+  (`test/fixtures/plan-prompt.txt`), and byte delivery verified against a scratch `cat -v`, which
+  received `^[[B^[[B` intact.
+- **Anchor on the question, not the title.** `Ready to code?` sits above the entire rendered plan, and
+  a plan's own prose can contain `❯` and lines starting `Yes…` — the captured fixture does. Options
+  are collected only after the last `Would you like to proceed?`.
+- **Fail closed.** No prompt, no cursor, no matching option, or an unreadable session all refuse the
+  click. A refusal costs a trip to the terminal; a guess costs a stray keypress in whatever is
+  running there.
+- **Narrow actuation.** `spawn` with an argv array and no shell; the only variable reaching argv is a
+  session id constrained to a UUID at registration. Tokens are single-use with a 30-minute expiry,
+  and cross-site requests are rejected — a hostile local page cannot read the token because CORS
+  blocks it from reading `/api/plans`.
+- **Everything is served `no-store`.** Static responses carried no `cache-control` and no validators,
+  so a pinned tab could keep an old `app.js` indefinitely — it POSTed a retired request shape to a
+  new server and got a 400. A round trip to 127.0.0.1 is cheaper than not knowing which build is
+  running.
+- **Rejections are JSON.** `text/plain` errors made the client's `res.json()` throw, so the reason was
+  discarded and the UI could only show `failed (400)`. Every 4xx/5xx now carries `{"error": …}`.
+- **The page polls until the options appear.** The hook fires at `PreToolUse`, before the prompt is
+  drawn, so the first screen read finds nothing and no further SSE event is coming.
 
 ## Error handling
 

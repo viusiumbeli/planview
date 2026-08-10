@@ -1,0 +1,61 @@
+     │ └───────────┴────────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+     │ ──┘                                                                                                                                                                    │
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+ 
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+   Ready to code?
+     
+   Here is Claude's plan: 
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   Fix the approve button's last step: the keystroke
+
+   Context
+
+   The feature works end to end except the final keypress. The last attempt proved most of it:
+
+   ┌─────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────┐
+   │                              Evidence                               │                                          Conclusion                                          │
+   ├─────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ hook.log: 16:50:15 fired … plan=now-you-have-access-abundant-graham │ PreToolUse does fire for ExitPlanMode. The open question from the last plan is answered — no │
+   │  … registered                                                       │  need for the Notification fallback.                                                         │
+   ├─────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ The buttons appeared in the browser                                 │ Registration, /api/plans, the awaiting badge and the header controls all work.               │
+   ├─────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ awaiting is now empty — the token was consumed                      │ The click reached /api/approve, passed the same-origin check, and the token validated.       │
+   ├─────────────────────────────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ The terminal did not advance                                        │ The failure is isolated to reading the prompt or delivering the keystroke.                   │
+   └─────────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+   So the remaining bug is in one of two places, and I cannot yet tell which, because /api/approve
+   records nothing and an empty awaiting is consistent with both:
+
+   1. Refused (409). parsePrompt did not recognise the real prompt, so nothing was typed. My parser
+   was built from an educated guess at the rendering — box-drawing frame, ❯ cursor, Yes…/No…
+   option rows — never from a real capture.
+   2. Sent (200) but inert. agtermctl session type --stdin reported success, but \x1b[B / \r did
+   not register as arrow/Enter in the Claude Code TUI.
+
+   Two things also became clear while diagnosing, both worth fixing:
+
+   - session text accepts --all or --lines, never both — passing both is a hard error. My
+   product code only ever passes --lines, so it is unaffected, but two of my manual checks were
+   silently reading that error message instead of a terminal buffer.
+   - session text returns only the visible screen (~61 lines here); the fullscreen TUI retains no
+   scrollback. So the prompt can only be inspected while it is on screen, which is why this needs a
+   live capture rather than after-the-fact forensics.
+
+   Step 1 — Capture the real prompt (already running)
+
+   A background poller is watching this session for Ready to code? and will save the first matching
+   screen to the scratchpad. Approving this plan produces that prompt, so the capture happens without
+   any further setup. That file becomes the fixture the parser is written against.
+                                                                                                                                                                             ↓
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Claude has written up a plan and is ready to execute. Would you like to proceed?
+
+   ❯ 1. Yes, and use auto mode
+     2. Yes, manually approve edits
+     3. Tell Claude what to change
+        shift+tab to approve with this feedback
+
+   ctrl+g to edit in Vim · ~/.claude/plans/now-you-have-access-abundant-graham.md

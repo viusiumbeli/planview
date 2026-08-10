@@ -9,6 +9,9 @@ const rail = document.getElementById('rail')
 const outline = document.getElementById('outline')
 const status = document.getElementById('status')
 const lockInput = document.getElementById('lock-input')
+const approve = document.getElementById('approve')
+const approveNote = document.getElementById('approve-note')
+const approveButtons = document.getElementById('approve-buttons')
 
 function store(key) {
   let data = {}
@@ -31,8 +34,11 @@ const seen = store('planview.seen')
 const collapsed = store('planview.collapsed')
 
 let selectedId = null
-let latest = { groups: [], older: [] }
+let selectedPlan = null
+let latest = { groups: [], older: [], awaiting: {} }
 let showAll = false
+
+const awaitingOn = (planId) => latest.awaiting?.[planId]
 
 const timeOf = (ms) =>
   new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -53,6 +59,8 @@ function planButton(plan, isChild) {
   label.className = 'label'
   label.append(plan.title)
   if (plan.agentName) label.append(badge(plan.agentName))
+  // A plan whose session is blocked is worth spotting without opening it.
+  if (awaitingOn(plan.id)) label.append(badge('awaiting', 'awaiting'))
   if (plan.id !== selectedId && seen.get(plan.id) !== plan.mtime) label.append(badge('new', 'new'))
   button.append(label)
 
@@ -145,8 +153,10 @@ async function open(plan) {
   renderOutline(article)
 
   selectedId = plan.id
+  selectedPlan = plan
   seen.set(plan.id, plan.mtime)
   document.title = `${plan.title} — planview`
+  renderApprove(plan)
   render(latest)
 }
 
@@ -163,6 +173,77 @@ function showHeader(plan) {
   file.textContent = `${plan.id}.md`
 
   planMeta.replaceChildren(time, ...(plan.agentName ? [badge(plan.agentName)] : []), file)
+}
+
+/* ---------- approving a plan ---------- */
+
+function renderApprove(plan) {
+  const entry = plan && awaitingOn(plan.id)
+  approve.hidden = !entry
+  if (!entry) {
+    approveButtons.replaceChildren()
+    approveNote.textContent = ''
+    return
+  }
+
+  // Options are read off the live terminal, so the buttons say exactly what the prompt says. Their
+  // wording varies by build and context, and guessing it is what broke the first attempt.
+  if (!entry.options?.length) {
+    approveButtons.replaceChildren()
+    approveNote.className = ''
+    approveNote.textContent = 'reading the prompt…'
+    return
+  }
+
+  approveNote.textContent = 'waiting in the terminal'
+  approveNote.className = ''
+  approveButtons.replaceChildren(
+    ...entry.options.map((option) => {
+      const button = document.createElement('button')
+      // The option the prompt already has its cursor on is the one Enter would pick.
+      button.className = `choice${option.selected ? ' primary' : ''}`
+      button.textContent = option.label
+      button.addEventListener('click', () => send(plan, entry.token, option))
+      return button
+    }),
+  )
+}
+
+async function send(plan, token, option) {
+  for (const button of approveButtons.querySelectorAll('button')) button.disabled = true
+  approveNote.textContent = 'sending…'
+
+  let res
+  try {
+    res = await fetch('/api/approve', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      // The label goes along so the server can refuse if the prompt changed since this was drawn.
+      body: JSON.stringify({ planId: plan.id, token, ordinal: option.n, label: option.label }),
+    })
+  } catch {
+    return fail('planview is not reachable')
+  }
+
+  if (res.ok) {
+    const { chose } = await res.json().catch(() => ({}))
+    approveNote.textContent = `sent — ${chose ?? 'answered'}`
+    approveButtons.replaceChildren()
+    return
+  }
+
+  // 409 is the expected, safe outcome when the prompt was already answered in the terminal.
+  // Fall back to text: a body that is not JSON must still say something, or a status like 400 shows
+  // up as a bare number with the reason thrown away.
+  const body = await res.clone().json().catch(() => null)
+  const reason = body?.error ?? (await res.text().catch(() => '')).trim()
+  fail(reason || `failed (${res.status})`)
+}
+
+function fail(message) {
+  approveNote.textContent = message
+  approveNote.className = 'error'
+  approveButtons.replaceChildren()
 }
 
 function wrapCodeBlocks(article) {
@@ -258,6 +339,27 @@ async function refresh() {
     return
   }
   render(latest)
+  // The hook registering an approval arrives as an SSE change without the plan itself changing, so
+  // the header controls have to be refreshed here too, not only when a plan is opened.
+  if (selectedPlan) renderApprove(flatten(latest).find((p) => p.id === selectedId) ?? selectedPlan)
+
+  // The hook fires at PreToolUse — BEFORE the prompt is drawn — so the first read of the screen
+  // usually finds no options yet, and no further SSE event is coming. Poll until they show up.
+  const blank = Object.values(latest.awaiting ?? {}).some((a) => !a.options?.length)
+  if (blank) retryForOptions()
+  else retries = 0
+}
+
+let retries = 0
+let retryTimer = null
+
+function retryForOptions() {
+  if (retryTimer || retries >= 20) return
+  retries++
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    refresh()
+  }, 800)
 }
 
 function connect() {

@@ -10,6 +10,8 @@
   --accent-soft: #ddf4ff;
   --accent-quiet: #eaf2fd;
   --new: #bf3989;
+  --waiting: #bc4c00;
+  --ok: #1a7f37;
   --sidebar-width: 19rem;
   --rail-width: 17rem;
   /* ~85 characters at the 16px base — wide enough to use the window, short enough to read. */
@@ -29,6 +31,8 @@
     --accent-soft: #121d2f;
     --accent-quiet: #161f2c;
     --new: #f778ba;
+    --waiting: #db6d28;
+    --ok: #3fb950;
   }
 }
 
@@ -186,6 +190,12 @@ body {
   color: var(--new);
 }
 
+.badge.awaiting {
+  border-color: var(--waiting);
+  color: var(--waiting);
+  font-weight: 600;
+}
+
 #lock {
   display: flex;
   align-items: center;
@@ -236,7 +246,10 @@ body {
   background: var(--bg);
 }
 
+/* Absorbs the free space, so the controls sit at the right edge and do not shift when the approve
+   group appears and disappears. */
 #plan-titles {
+  flex: 1;
   min-width: 0;
 }
 
@@ -268,6 +281,72 @@ body {
 
 #plan-meta .badge {
   margin-left: 0;
+}
+
+/* ---------- approve controls ---------- */
+
+#approve {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: none;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--waiting);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--waiting) 8%, transparent);
+}
+
+#approve[hidden] {
+  display: none;
+}
+
+#approve-note {
+  font-size: 0.75rem;
+  color: var(--waiting);
+  white-space: nowrap;
+}
+
+#approve-note.error {
+  color: var(--fg-muted);
+}
+
+#approve-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.choice {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.choice:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.choice.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.choice.primary:hover:not(:disabled) {
+  color: #fff;
+  filter: brightness(1.08);
+}
+
+.choice:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 #doc {
