@@ -1,5 +1,12 @@
+import { buildOutline } from './outline.js'
+
 const tree = document.getElementById('tree')
-const pane = document.getElementById('pane')
+const doc = document.getElementById('doc')
+const planHeader = document.getElementById('plan-header')
+const planTitle = document.getElementById('plan-title')
+const planMeta = document.getElementById('plan-meta')
+const rail = document.getElementById('rail')
+const outline = document.getElementById('outline')
 const status = document.getElementById('status')
 const lockInput = document.getElementById('lock-input')
 
@@ -41,12 +48,13 @@ function planButton(plan, isChild) {
   const button = document.createElement('button')
   button.className = `plan${isChild ? ' child' : ''}${plan.id === selectedId ? ' selected' : ''}`
 
-  const title = document.createElement('span')
-  title.textContent = plan.title
-  button.append(title)
-
-  if (plan.agentName) button.append(badge(plan.agentName))
-  if (plan.id !== selectedId && seen.get(plan.id) !== plan.mtime) button.append(badge('new', 'new'))
+  // Title and badges share one grid cell so the time can sit right-aligned in the other.
+  const label = document.createElement('span')
+  label.className = 'label'
+  label.append(plan.title)
+  if (plan.agentName) label.append(badge(plan.agentName))
+  if (plan.id !== selectedId && seen.get(plan.id) !== plan.mtime) label.append(badge('new', 'new'))
+  button.append(label)
 
   const time = document.createElement('span')
   time.className = 'time'
@@ -105,12 +113,14 @@ function render(data) {
 async function open(plan) {
   const res = await fetch(`/api/plan?id=${encodeURIComponent(plan.id)}`)
   if (!res.ok) {
-    pane.replaceChildren(
+    doc.replaceChildren(
       Object.assign(document.createElement('div'), {
         className: 'empty',
         textContent: `Could not read this plan (${res.status}).`,
       }),
     )
+    // The old outline points at headings that are gone now, so its links would do nothing.
+    clearOutline()
     return
   }
 
@@ -118,7 +128,7 @@ async function open(plan) {
   article.className = 'markdown'
   article.innerHTML = marked.parse(await res.text())
 
-  for (const block of article.querySelectorAll('pre code')) hljs.highlightElement(block)
+  wrapCodeBlocks(article)
   // Tables are what reliably overflow; each gets its own scroll container so the page never does.
   for (const table of article.querySelectorAll('table')) {
     const wrap = document.createElement('div')
@@ -127,15 +137,112 @@ async function open(plan) {
     wrap.append(table)
   }
 
-  const keepScroll = plan.id === selectedId ? pane.scrollTop : 0
-  pane.replaceChildren(article)
-  pane.scrollTop = keepScroll
+  const keepScroll = plan.id === selectedId ? doc.scrollTop : 0
+  doc.replaceChildren(article)
+  doc.scrollTop = keepScroll
+
+  showHeader(plan)
+  renderOutline(article)
 
   selectedId = plan.id
   seen.set(plan.id, plan.mtime)
   document.title = `${plan.title} — planview`
   render(latest)
 }
+
+function showHeader(plan) {
+  planHeader.hidden = false
+  planTitle.textContent = plan.title
+  planTitle.title = plan.title
+
+  const time = document.createElement('span')
+  time.textContent = timeOf(plan.mtime)
+
+  const file = document.createElement('span')
+  file.className = 'file'
+  file.textContent = `${plan.id}.md`
+
+  planMeta.replaceChildren(time, ...(plan.agentName ? [badge(plan.agentName)] : []), file)
+}
+
+function wrapCodeBlocks(article) {
+  for (const pre of article.querySelectorAll('pre')) {
+    const code = pre.querySelector('code')
+    // marked's `language-*` class has to be read before highlightElement rewrites the class list.
+    const lang = code?.className.match(/language-([\w-]+)/)?.[1]
+
+    const wrap = document.createElement('div')
+    wrap.className = 'code'
+    pre.replaceWith(wrap)
+    if (lang) {
+      const label = document.createElement('div')
+      label.className = 'code-lang'
+      label.textContent = lang
+      wrap.append(label)
+    }
+    wrap.append(pre)
+
+    if (code) hljs.highlightElement(code)
+  }
+}
+
+/* ---------- outline rail ---------- */
+
+let spy = []
+
+function clearOutline() {
+  spy = []
+  outline.replaceChildren()
+  rail.hidden = true
+}
+
+function renderOutline(article) {
+  const headings = [...article.querySelectorAll('h2, h3')]
+  const entries = buildOutline(
+    headings.map((el) => ({ level: Number(el.tagName[1]), text: el.textContent })),
+  )
+
+  outline.replaceChildren()
+  spy = entries.map((entry, i) => {
+    headings[i].id = entry.id
+
+    const link = document.createElement('a')
+    link.href = `#${entry.id}`
+    link.dataset.level = String(entry.level)
+    link.textContent = entry.text
+    link.addEventListener('click', (event) => {
+      event.preventDefault()
+      headings[i].scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    outline.append(link)
+
+    return { heading: headings[i], link }
+  })
+
+  // A plan with no sections has nothing to navigate, so the rail gets out of the way.
+  rail.hidden = spy.length === 0
+  highlight()
+}
+
+function highlight() {
+  const line = doc.getBoundingClientRect().top + 100
+  let active = spy.length ? spy[0] : null
+  for (const entry of spy) {
+    if (entry.heading.getBoundingClientRect().top > line) break
+    active = entry
+  }
+  for (const entry of spy) entry.link.classList.toggle('active', entry === active)
+}
+
+let queued = false
+doc.addEventListener('scroll', () => {
+  if (queued) return
+  queued = true
+  requestAnimationFrame(() => {
+    queued = false
+    highlight()
+  })
+})
 
 /* ---------- live updates ---------- */
 

@@ -31,8 +31,19 @@ when the filename carries one.
 
 The last 7 days are shown by default; `Older` expands to the full archive.
 
-**lock view** freezes the current plan. Without it the newest plan always wins, which is wrong when
-a parallel session writes a plan while you are still reading this one.
+## The reading pane
+
+Three columns: the plan list, the plan, and an outline of its `##`/`###` headings. The outline
+highlights the section you are in and jumps to any other; it hides itself for a plan with no
+sections, and drops out entirely below 1200px.
+
+Prose is capped at a readable measure and centred, while **tables and fenced code break out wider**
+— those are what the terminal rendered worst, so they get the room. A table too wide even for that
+scrolls inside its own box, so the page itself never scrolls sideways.
+
+The plan's title, time and filename sit in a header that stays put while the body scrolls, next to
+**lock view** — which freezes the current plan. Without it the newest plan always wins, which is
+wrong when a parallel session writes a plan while you are still reading this one.
 
 ## Development
 

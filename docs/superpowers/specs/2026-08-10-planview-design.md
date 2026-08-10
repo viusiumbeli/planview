@@ -29,20 +29,23 @@ cost, and it matches how a plan is actually reached ("the one from this morning"
 
 ## Layout
 
+Three columns: plan list, plan, outline.
+
 ```
-planview                 | # COMD-1348 - Prevent
-                         |   thread blocking in Promo
- v Today                 |   Service
-   * COMD-1348    (new)  |
-       > architect2      | ## Context
-     openspec rework     |
- v Yesterday             | **COMD-1348** (Bug,
-     COMD-1422 migration | component `Back`, assignee
- v Thu 7 Aug             | me, In Progress, created
-     CPA2.1 volume bonus | 2026-05-20).
- > Older                 |
-                         | ### The incident (rc)
- [x] lock view           |
+planview            | COMD-1348 - Prevent thread bl... [x] lock view | ON THIS PAGE
+                    | 12:57  https-trade-...-proud-scott.md         |
+ v Today            +----------------------------------------------+ Context
+   COMD-1348  12:57 |                                              |   The incident
+     > architect2   |     # COMD-1348 - Prevent thread              | Findings
+   openspec   11:40 |       blocking in Promo Service               |   The two schedulers
+ v Yesterday        |                                              | Decisions          <
+   COMD-1422  14:28 |     ## Context                                | Plan
+ v Thu 7 Aug        |                                              |   1. Migration
+   CPA2.1     14:49 |     **COMD-1348** (Bug, component            | Verification
+ > Older            |     `Back`, assignee me, In Progress).        |
+                    |   +--------------------------------------+   |
+                    |   | # | Decision      | Rationale        |   |
+                    |   +--------------------------------------+   |
 ```
 
 - **Label** is the H1, always — including subagent plans, whose H1s are descriptive where their
@@ -50,8 +53,16 @@ planview                 | # COMD-1348 - Prevent
 - **Nesting**: `<parent>-agent-<id>.md` renders indented under `<parent>.md`.
 - **Window**: last 7 days grouped by day; `Older` expands to the full archive on click.
 - **Auto-select**: the newest plan selects itself when it changes, unless **lock view** is on —
-  which stops a parallel session stealing the page mid-read.
+  which stops a parallel session stealing the page mid-read. It lives in the plan header because
+  that is where you are looking when you need it.
 - **`(new)`** marks plans written since that plan was last opened in this tab.
+- **Plan header** keeps title, time and filename on screen once the H1 has scrolled away.
+- **Outline** is built from the rendered `h2`/`h3`, tracks the section you are in on scroll, and
+  hides itself when a plan has no sections. It drops out below 1200px.
+- **Measure and breakout**: prose is capped at `--measure` and centred, but tables and fenced code
+  take a wider track — they are what read worst in a terminal, so they get the room. `.markdown` is
+  a grid to make that possible, which means block margins no longer collapse and all vertical
+  spacing is `margin-top`-only.
 
 ## Components
 
@@ -61,7 +72,8 @@ planview                 | # COMD-1348 - Prevent
 | `src/scan.js` | The IO half: read the plans dir, stat, read first line. |
 | `src/watcher.js` | `fs.watch` (instant) + 2s safety poll (macOS drops events on atomic replace), debounced 150ms. |
 | `src/server.js` | Node `http`. `/` page, `/api/plans` tree JSON, `/api/plan?id=` raw markdown, `/events` SSE. |
-| `public/app.js` | Tree + pane rendering, lock/show-all/seen state, SSE subscription. |
+| `public/app.js` | Tree + pane rendering, plan header, outline + scroll-spy, lock/show-all/seen state, SSE subscription. |
+| `public/outline.js` | Heading slugs and de-duplicated anchor ids. Pure — takes `{level, text}`, not DOM nodes — so it is testable without a DOM. |
 | `public/vendor/` | `marked.min.js`, `highlight.min.js` — committed, no runtime npm install. |
 | `bin/planview` | `start` / `stop` / `status`; `start --install` writes the launchd plist. |
 
@@ -90,6 +102,8 @@ and cutoff tests pass an explicit `now` rather than touching mtimes.
   (`aarchitect2-8e1b71ee…` vs opaque `a85b2c4a…`), day grouping across a month boundary, 7-day cutoff.
 - `watcher`: one emit per burst; catches a change the OS event missed.
 - `server`: route status + content type; `/api/plan` rejects ids escaping the plans dir.
+- `outline`: slugs for punctuation, inline markdown and a Cyrillic heading; repeated headings get
+  `-2`/`-3` ids, since plans really do carry several `### Verification`.
 
 ## Out of scope
 

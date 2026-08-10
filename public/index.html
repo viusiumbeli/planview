@@ -18,16 +18,26 @@
         <span id="status" title="connection to the planview daemon"></span>
       </header>
       <nav id="tree" aria-label="Plans"></nav>
-      <footer>
-        <label id="lock">
+    </aside>
+    <main id="pane">
+      <header id="plan-header" hidden>
+        <div id="plan-titles">
+          <h2 id="plan-title"></h2>
+          <div id="plan-meta"></div>
+        </div>
+        <label id="lock" title="stop a newer plan from replacing this one">
           <input type="checkbox" id="lock-input" />
           <span>lock view</span>
         </label>
-      </footer>
-    </aside>
-    <main id="pane">
-      <div class="empty">No plans yet.</div>
+      </header>
+      <div id="doc">
+        <div class="empty">No plans yet.</div>
+      </div>
     </main>
+    <aside id="rail" hidden>
+      <div class="rail-title">On this page</div>
+      <nav id="outline" aria-label="Outline"></nav>
+    </aside>
     <script src="/static/vendor/marked.min.js"></script>
     <script src="/static/vendor/highlight.min.js"></script>
     <script type="module" src="/static/app.js"></script>

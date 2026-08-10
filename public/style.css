@@ -1,24 +1,33 @@
 :root {
   --bg: #ffffff;
   --bg-sidebar: #f6f7f9;
+  --bg-elevated: #f6f8fa;
   --fg: #1f2328;
   --fg-muted: #656d76;
   --border: #d8dce1;
+  --border-subtle: #e8ebee;
   --accent: #0969da;
   --accent-soft: #ddf4ff;
+  --accent-quiet: #eaf2fd;
   --new: #bf3989;
-  --sidebar-width: 20rem;
+  --sidebar-width: 19rem;
+  --rail-width: 17rem;
+  /* ~85 characters at the 16px base — wide enough to use the window, short enough to read. */
+  --measure: 48rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0d1117;
     --bg-sidebar: #010409;
+    --bg-elevated: #161b22;
     --fg: #e6edf3;
     --fg-muted: #8b949e;
     --border: #30363d;
+    --border-subtle: #21262d;
     --accent: #4493f8;
     --accent-soft: #121d2f;
+    --accent-quiet: #161f2c;
     --new: #f778ba;
   }
 }
@@ -30,11 +39,16 @@
 body {
   margin: 0;
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  height: 100vh;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);
+  height: 100dvh;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
 }
 
 /* ---------- sidebar ---------- */
@@ -78,17 +92,22 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.5rem 0 1rem;
+  padding: 0 0 1.5rem;
 }
 
+/* Day labels pin while a long archive scrolls past them. */
 .group > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   list-style: none;
   cursor: pointer;
-  padding: 0.35rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.5rem 1rem 0.4rem;
+  background: var(--bg-sidebar);
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--fg-muted);
   user-select: none;
 }
@@ -109,15 +128,20 @@ body {
 }
 
 .plan {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 0.5rem;
   width: 100%;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.4;
   text-align: left;
   cursor: pointer;
-  padding: 0.35rem 1rem 0.35rem 2rem;
+  padding: 0.4rem 0.85rem 0.45rem 1rem;
   border-left: 2px solid transparent;
   overflow-wrap: anywhere;
 }
@@ -133,15 +157,15 @@ body {
 }
 
 .plan.child {
-  padding-left: 3rem;
-  font-size: 0.9rem;
+  padding-left: 1.9rem;
+  font-size: 0.85rem;
   color: var(--fg-muted);
 }
 
 .plan .time {
-  display: block;
   font-size: 0.72rem;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
   color: var(--fg-muted);
 }
 
@@ -152,6 +176,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.68rem;
+  font-weight: 500;
+  white-space: nowrap;
   color: var(--fg-muted);
 }
 
@@ -160,30 +186,95 @@ body {
   color: var(--new);
 }
 
-#sidebar footer {
-  padding: 0.6rem 1rem;
-  border-top: 1px solid var(--border);
-  font-size: 0.82rem;
-  color: var(--fg-muted);
-}
-
 #lock {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--fg-muted);
   cursor: pointer;
   user-select: none;
+}
+
+#lock:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#lock input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+#lock:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ---------- reading pane ---------- */
 
 #pane {
-  overflow-y: auto;
-  padding: 2.5rem 3rem 6rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.markdown {
-  max-width: 52rem;
+#plan-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: none;
+  padding: 0.85rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+#plan-titles {
+  min-width: 0;
+}
+
+#plan-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plan-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+#plan-meta .file {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plan-meta .badge {
+  margin-left: 0;
+}
+
+#doc {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2.5rem 2rem 8rem;
 }
 
 .empty {
@@ -191,82 +282,336 @@ body {
   font-style: italic;
 }
 
+/* ---------- rendered markdown ---------- */
+
+/* Prose is capped at --measure and centred; tables and code opt into the wider track, which is
+   what actually made these plans unreadable in a terminal. */
+.markdown {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    [wide-start] minmax(0, 6rem)
+    [content-start] min(100%, var(--measure)) [content-end]
+    minmax(0, 6rem) [wide-end]
+    minmax(0, 1fr);
+}
+
+.markdown > * {
+  grid-column: content;
+}
+
+.markdown > .code,
+.markdown > .table-scroll {
+  grid-column: wide;
+}
+
+/* Grid items do not collapse their margins, so spacing is top-only throughout. */
+.markdown > * {
+  margin-block: 0;
+}
+
+.markdown > * + * {
+  margin-top: 1.05em;
+}
+
+.markdown > h2 {
+  margin-top: 2.6rem;
+}
+
+.markdown > h3 {
+  margin-top: 1.9rem;
+}
+
+.markdown > .code,
+.markdown > .table-scroll,
+.markdown > blockquote {
+  margin-top: 1.5rem;
+}
+
+/* Body copy tucks up under its own heading — but a heading following a heading keeps its full gap. */
+.markdown > :is(h1, h2, h3, h4) + :not(h1, h2, h3, h4) {
+  margin-top: 0.7rem;
+}
+
+.markdown :is(h1, h2, h3, h4) {
+  scroll-margin-top: 1.5rem;
+  text-wrap: balance;
+  /* Headings carry identifiers like `CampaignActivationService.kt:964`, which have nowhere to wrap. */
+  overflow-wrap: break-word;
+}
+
 .markdown h1 {
-  margin-top: 0;
-  font-size: 1.7rem;
-  line-height: 1.3;
+  font-size: 2.05rem;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.021em;
 }
 
 .markdown h2 {
-  margin-top: 2rem;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--border);
-  font-size: 1.3rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
 }
 
 .markdown h3 {
-  margin-top: 1.6rem;
-  font-size: 1.08rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown h4 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.markdown p,
+.markdown li {
+  text-wrap: pretty;
+}
+
+/* Plans lead most list items with `**Bold.**` — that pattern should read as a label. */
+.markdown strong {
+  font-weight: 650;
+  color: var(--fg);
 }
 
 .markdown a {
   color: var(--accent);
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown hr {
+  width: 6rem;
+  margin-inline: auto;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
 .markdown code {
   padding: 0.15em 0.35em;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--fg) 8%, transparent);
-  font-size: 0.88em;
+  background: var(--accent-quiet);
+  font-size: 0.875em;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  overflow-wrap: break-word;
 }
 
-.markdown pre {
-  overflow-x: auto;
+/* …but a fenced block scrolls instead of breaking, so its code keeps its original line breaks. */
+.code pre code {
+  overflow-wrap: normal;
+}
+
+/* ---------- code blocks ---------- */
+
+.code {
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
 }
 
-.markdown pre code {
-  padding: 1rem;
-  background: none;
-  font-size: 0.85em;
-}
-
-.markdown blockquote {
-  margin-left: 0;
-  padding-left: 1rem;
-  border-left: 3px solid var(--border);
+.code-lang {
+  padding: 0.35rem 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--fg-muted);
 }
+
+.code pre {
+  margin: 0;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.code pre code {
+  display: block;
+  padding: 0.9rem;
+  background: none;
+  border-radius: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+/* ---------- tables ---------- */
 
 /* Wide tables scroll inside their own wrapper so the page never scrolls sideways. */
 .table-scroll {
   overflow-x: auto;
-  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .markdown table {
+  width: 100%;
   border-collapse: collapse;
-  font-size: 0.92em;
+  font-size: 0.9rem;
 }
 
 .markdown th,
 .markdown td {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.5rem 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
   vertical-align: top;
 }
 
 .markdown th {
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.markdown tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.markdown tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown td:first-child {
+  font-weight: 550;
+}
+
+/* ---------- lists, quotes ---------- */
+
+.markdown ul,
+.markdown ol {
+  padding-left: 1.4rem;
+}
+
+.markdown li::marker {
+  color: var(--fg-muted);
 }
 
 .markdown li + li {
-  margin-top: 0.2rem;
+  margin-top: 0.3rem;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin-top: 0.3rem;
+}
+
+.markdown li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.4rem;
 }
 
 .markdown input[type="checkbox"] {
   margin-right: 0.4rem;
+  accent-color: var(--accent);
+}
+
+.markdown blockquote {
+  padding: 0.6rem 1rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--accent-quiet);
+  color: var(--fg);
+}
+
+.markdown blockquote > * {
+  margin-block: 0;
+}
+
+.markdown blockquote > * + * {
+  margin-top: 0.6rem;
+}
+
+/* ---------- outline rail ---------- */
+
+#rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 0 3rem;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+#rail[hidden] {
+  display: none;
+}
+
+.rail-title {
+  padding: 0 1.25rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-muted);
+}
+
+/* Plan headings can be a whole filename long; two lines keeps the rail scannable. */
+#outline a {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  padding: 0.25rem 1.25rem;
+  border-left: 2px solid transparent;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+#outline a[data-level="3"] {
+  padding-left: 2.1rem;
+  font-size: 0.8rem;
+}
+
+#outline a:hover {
+  color: var(--fg);
+}
+
+#outline a.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------- narrower windows ---------- */
+
+@media (max-width: 1200px) {
+  :root {
+    --rail-width: 0;
+  }
+
+  #rail {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(7rem, 22vh) minmax(0, 1fr);
+  }
+
+  #sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #plan-header,
+  #doc {
+    padding-inline: 1.1rem;
+  }
 }
