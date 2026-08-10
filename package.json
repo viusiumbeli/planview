@@ -1,0 +1,11 @@
+{
+  "name": "planview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Web viewer for Claude Code plan-mode markdown",
+  "bin": { "planview": "./bin/planview" },
+  "scripts": {
+    "test": "node --test --test-force-exit"
+  }
+}

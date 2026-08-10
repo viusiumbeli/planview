@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>planview</title>
+    <link rel="stylesheet" href="/static/vendor/highlight-theme.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>📋</text></svg>"
+    />
+  </head>
+  <body>
+    <aside id="sidebar">
+      <header>
+        <h1>planview</h1>
+        <span id="status" title="connection to the planview daemon"></span>
+      </header>
+      <nav id="tree" aria-label="Plans"></nav>
+      <footer>
+        <label id="lock">
+          <input type="checkbox" id="lock-input" />
+          <span>lock view</span>
+        </label>
+      </footer>
+    </aside>
+    <main id="pane">
+      <div class="empty">No plans yet.</div>
+    </main>
+    <script src="/static/vendor/marked.min.js"></script>
+    <script src="/static/vendor/highlight.min.js"></script>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

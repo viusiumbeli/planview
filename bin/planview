@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+import { spawn } from 'node:child_process'
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
+import { openSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+import { createServer } from '../src/server.js'
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const STATE = join(process.env.HOME, '.local', 'state', 'planview')
+const PID_FILE = join(STATE, 'planview.pid')
+const LOG_FILE = join(STATE, 'planview.log')
+const PLIST = join(process.env.HOME, 'Library', 'LaunchAgents', 'dev.planview.plist')
+
+const PORT = Number(process.env.PLANVIEW_PORT ?? 7777)
+const URL = `http://127.0.0.1:${PORT}`
+
+const [command = 'help'] = process.argv.slice(2)
+const commands = { serve, start, stop, status, install, uninstall, help }
+
+const run = commands[command]
+if (!run) {
+  console.error(`planview: unknown command "${command}"`)
+  help()
+  process.exit(2)
+}
+await run()
+
+/* ---------- commands ---------- */
+
+async function serve() {
+  const server = createServer()
+
+  server.on('error', (err) => {
+    const reason = err.code === 'EADDRINUSE' ? `port ${PORT} is already in use` : err.message
+    console.error(`planview: cannot listen — ${reason}`)
+    process.exit(1)
+  })
+
+  server.listen(PORT, '127.0.0.1', () => console.log(`planview listening on ${URL}`))
+
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.on(signal, () => server.shutdown().then(() => process.exit(0)))
+  }
+}
+
+async function start() {
+  if (await pidOf()) return console.log(`planview already running on ${URL}`)
+
+  await mkdir(STATE, { recursive: true })
+  const log = openSync(LOG_FILE, 'a')
+  const child = spawn(process.execPath, [join(ROOT, 'bin', 'planview'), 'serve'], {
+    detached: true,
+    stdio: ['ignore', log, log],
+  })
+  child.unref()
+  await writeFile(PID_FILE, String(child.pid))
+
+  console.log(`planview started on ${URL} (pid ${child.pid}, log ${LOG_FILE})`)
+}
+
+async function stop() {
+  const pid = await pidOf()
+  if (!pid) return console.log('planview is not running')
+
+  process.kill(pid, 'SIGTERM')
+  await unlink(PID_FILE).catch(() => {})
+  console.log(`planview stopped (pid ${pid})`)
+}
+
+async function status() {
+  const pid = await pidOf()
+  if (!pid) {
+    console.log('planview: stopped')
+    process.exit(1)
+  }
+
+  const reachable = await fetch(`${URL}/api/plans`).then((r) => r.ok).catch(() => false)
+  console.log(`planview: running (pid ${pid}), ${URL} ${reachable ? 'responding' : 'NOT responding'}`)
+  if (!reachable) process.exit(1)
+}
+
+async function install() {
+  await mkdir(dirname(PLIST), { recursive: true })
+  await mkdir(STATE, { recursive: true })
+  await writeFile(PLIST, plist())
+
+  await launchctl(['bootout', `gui/${process.getuid()}/dev.planview`]).catch(() => {})
+  await launchctl(['bootstrap', `gui/${process.getuid()}`, PLIST])
+
+  console.log(`planview installed as a launch agent (${PLIST})`)
+  console.log(`it will start at login and restart if it dies — open ${URL} and pin the tab`)
+}
+
+async function uninstall() {
+  await launchctl(['bootout', `gui/${process.getuid()}/dev.planview`]).catch(() => {})
+  await unlink(PLIST).catch(() => {})
+  console.log('planview launch agent removed')
+}
+
+function help() {
+  console.log(`planview — web viewer for Claude Code plan-mode markdown
+
+  planview start       run the daemon in the background
+  planview stop        stop it
+  planview status      report whether it is running and responding
+  planview serve       run in the foreground (what launchd calls)
+  planview install     install + load the launch agent (starts at login)
+  planview uninstall   remove the launch agent
+
+  PLANVIEW_PORT overrides the default port (${PORT}).`)
+}
+
+/* ---------- helpers ---------- */
+
+async function pidOf() {
+  try {
+    const pid = Number(await readFile(PID_FILE, 'utf8'))
+    process.kill(pid, 0) // throws unless the process is alive
+    return pid
+  } catch {
+    return null
+  }
+}
+
+function launchctl(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('launchctl', args, { stdio: 'inherit' })
+    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`launchctl ${args[0]} failed`))))
+  })
+}
+
+function plist() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>dev.planview</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${process.execPath}</string>
+    <string>${join(ROOT, 'bin', 'planview')}</string>
+    <string>serve</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict><key>PLANVIEW_PORT</key><string>${PORT}</string></dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>${LOG_FILE}</string>
+  <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+</dict>
+</plist>
+`
+}
