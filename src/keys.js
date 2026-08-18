@@ -5,7 +5,7 @@
 // not a guess, and control characters are stripped out of text so a page cannot smuggle an OSC
 // sequence inside "plain words". The `key` path is the only way to produce an escape byte.
 
-export const KEYS = {
+const KEYS = {
   enter: '\r',
   escape: '\x1b',
   tab: '\t',

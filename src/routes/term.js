@@ -18,7 +18,7 @@ const PANES = new Set(['left', 'right', 'scratch'])
 const FLAG_MODES = new Set(['on', 'off', 'toggle'])
 
 /** Ring items → the SSE vocabulary the browsers speak. Returns null for kinds handled elsewhere. */
-export function translateEvent(item) {
+function translateEvent(item) {
   if (item.kind === 'status') {
     return {
       type: 'session.status',

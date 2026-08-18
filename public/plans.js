@@ -282,7 +282,6 @@ export async function initPlans({ active = () => true } = {}) {
   })
 
   return {
-    refresh,
     latest: () => latest,
     // Restores this mode's own pane/rail visibility when the user switches back to it.
     activate() {
@@ -291,10 +290,6 @@ export async function initPlans({ active = () => true } = {}) {
     },
     onUpdate(listener) {
       listeners.add(listener)
-    },
-    openPlan(planId) {
-      const plan = flatten(latest).find((p) => p.id === planId)
-      if (plan) open(plan)
     },
   }
 }

@@ -70,7 +70,7 @@ export async function initSessions({ plans, active }) {
     },
   })
 
-  const composer = createComposer({
+  createComposer({
     form: el('composer'),
     textarea: el('composer-input'),
     sendButton: el('composer-send'),

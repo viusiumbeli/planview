@@ -22,11 +22,8 @@ const post = (path, body = {}) =>
   })
 
 export const api = {
-  plans: () => request('/api/plans'),
   tree: () => request('/api/term/tree'),
-  state: () => request('/api/term/state'),
 
-  screen: (sid, pane) => request(`/api/term/sessions/${sid}/screen${pane ? `?pane=${pane}` : ''}`),
   type: (sid, body) => post(`/api/term/sessions/${sid}/type`, body),
   select: (sid) => post(`/api/term/sessions/${sid}/select`),
   seen: (sid) => post(`/api/term/sessions/${sid}/seen`),

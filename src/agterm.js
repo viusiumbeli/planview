@@ -13,8 +13,6 @@ const BIN = process.env.AGTERMCTL || BUNDLED
 
 const TIMEOUT_MS = 4000
 
-export const inAgterm = () => Boolean(process.env.AGTERM_ENABLED)
-
 export function createAgterm({ bin = BIN } = {}) {
   const run = (args, stdin) =>
     new Promise((resolve) => {

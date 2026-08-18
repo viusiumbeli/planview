@@ -17,7 +17,7 @@ export function renderMarkdown(text) {
   return article
 }
 
-export function wrapCodeBlocks(article) {
+function wrapCodeBlocks(article) {
   for (const pre of article.querySelectorAll('pre')) {
     const code = pre.querySelector('code')
     // marked's `language-*` class has to be read before highlightElement rewrites the class list.

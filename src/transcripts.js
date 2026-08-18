@@ -248,5 +248,5 @@ export function createTranscripts({
     }
   }
 
-  return { page, tail, readLine, watchFile, shapeEntry }
+  return { page, tail, readLine, watchFile }
 }
