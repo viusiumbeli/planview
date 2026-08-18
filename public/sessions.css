@@ -9,33 +9,7 @@
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
-/* ---------- mode switch ---------- */
-
-#mode {
-  display: flex;
-  flex: 1;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.mode-tab {
-  flex: 1;
-  border: 0;
-  background: none;
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.15rem 0.6rem;
-  cursor: pointer;
-}
-
-.mode-tab.selected {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
+/* ---------- sidebar extras ---------- */
 
 #agterm-offline {
   padding: 0.4rem 1rem;
@@ -189,10 +163,9 @@
 
 /* ---------- mode panels ---------- */
 
-/* Both modes are flex columns filling #pane, because the scrolling children inside them (#doc,
-   #term-scroll) are `flex: 1; min-height: 0; overflow: auto` — a plain block wrapper makes them
-   grow to their content instead, and #pane's overflow:hidden then clips it with no scrollbar. */
-#plans-view,
+/* A flex column filling #pane, because #term-scroll inside it is `flex: 1; min-height: 0;
+   overflow: auto` — inside a plain block it would grow to its content instead, and #pane's
+   overflow:hidden would clip it with no scrollbar. */
 #session-view {
   display: flex;
   flex-direction: column;
@@ -201,12 +174,8 @@
 }
 
 /* An author `display` beats the UA's `[hidden] { display: none }` — origin outranks specificity —
-   so every element that sets display AND gets toggled by the hidden attribute needs this guard.
-   style.css does the same for #approve and #rail. */
-#plans-view[hidden],
-#session-view[hidden],
-#sess-rail[hidden],
-#plan-header[hidden] {
+   so every element that sets display AND gets toggled by the hidden attribute needs this guard. */
+#approve-strip[hidden] {
   display: none;
 }
 
@@ -250,11 +219,12 @@
   white-space: nowrap;
 }
 
-.tabpane {
+#screen-wrap {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 /* ---------- live frame ---------- */
@@ -411,6 +381,69 @@
   color: var(--accent);
 }
 
+/* The plan, rendered as a document inside the terminal feed. */
+
+.plan-card {
+  margin: 0.6rem 0 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.plan-label {
+  padding: 0.25rem 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
+.plan-card > div:last-child {
+  padding: 0.9rem 0 1.4rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.plan-clipped {
+  padding: 0 0.9rem 0.7rem;
+  color: var(--waiting);
+  font-size: 0.72rem;
+}
+
+/* The prompt, where it happened: under the feed, above the live frame. */
+
+#approve-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 1.5rem 0.2rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--waiting);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--waiting) 8%, transparent);
+}
+
+#approve-note {
+  font-size: 0.75rem;
+  color: var(--waiting);
+}
+
+#approve-note.error {
+  color: var(--fg-muted);
+}
+
+#approve-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 #frame {
   margin: 0;
   padding: 0.7rem 1.5rem 0.9rem;
@@ -426,10 +459,6 @@
 #frame.gone {
   color: var(--fg-muted);
   font-style: italic;
-}
-
-#screen-wrap {
-  position: relative;
 }
 
 #live-pill {
@@ -514,13 +543,6 @@
 
 /* ---------- rail ---------- */
 
-#sess-rail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding-top: 0;
-}
-
 #sess-info {
   margin: 0 1.25rem 0.8rem;
   font-size: 0.8rem;
@@ -543,41 +565,6 @@
 #sess-info dd.mono {
   font-family: var(--mono);
   font-size: 0.72rem;
-}
-
-.rail-card {
-  margin: 0 1rem 0.8rem;
-  padding: 0.6rem 0.25rem 0.7rem;
-  border: 1px solid var(--waiting);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--waiting) 7%, transparent);
-}
-
-.rail-card .rail-title {
-  color: var(--waiting);
-}
-
-#sess-approve-note {
-  display: block;
-  padding: 0 1.25rem 0.4rem;
-  font-size: 0.75rem;
-  color: var(--waiting);
-}
-
-#sess-approve-note.error {
-  color: var(--fg-muted);
-}
-
-#sess-approve-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0 1.25rem;
-}
-
-#sess-approve-buttons .choice {
-  white-space: normal;
-  text-align: left;
 }
 
 #sess-actions {

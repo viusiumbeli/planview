@@ -61,6 +61,24 @@ test('thinking is one dim line until expanded', () => {
   assert.equal(rows[0].more.hidden, '  секретные мысли')
 })
 
+test('a plan row hands the renderer raw markdown, not log text', () => {
+  const md = '# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |'
+  const [row] = entryRows(entry('assistant', [{ kind: 'plan', i: 0, planId: 'quiet-pebble', text: md, truncated: false }]))
+
+  assert.equal(row.cls, 't-plan')
+  assert.equal(row.text, md, 'no prefixes or indentation — it gets rendered as a document')
+  assert.deepEqual(row.plan, { planId: 'quiet-pebble', truncated: false })
+  assert.equal(row.more, null)
+  // The plan's full text comes from /api/plan by id, so the block-fetch address is not used here.
+  assert.equal(row.fetch, null)
+})
+
+test('a truncated plan says so, so the renderer can fetch the file', () => {
+  const [row] = entryRows(entry('assistant', [{ kind: 'plan', i: 2, planId: 'big', text: 'clip', truncated: true }]))
+
+  assert.deepEqual(row.plan, { planId: 'big', truncated: true })
+})
+
 test('a server-truncated block carries its fetch address for /history/block', () => {
   const rows = entryRows(
     entry('user', [{ kind: 'tool_result', i: 3, isError: false, text: 'clipped', truncated: true, fullLength: 9000 }], 4242),

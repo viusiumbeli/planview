@@ -7,21 +7,19 @@ import { createScrollback } from './scrollback.js'
 import { createSessionTree } from './tree.js'
 
 /**
- * Sessions mode — the agterm mirror. FULL-mirror semantics, as chosen: the page always shows the
- * ACTIVE agterm session; clicking a session here selects it in the desktop app, and selecting one
- * in the desktop app steers this page. The web page is the terminal window, not a second one.
+ * The whole page: agterm's sessions, the feed of the one you are looking at, and the plans that
+ * appear inside that feed. FULL-mirror semantics, as chosen: the page shows the ACTIVE agterm
+ * session; clicking a session here selects it in the desktop app, and selecting one in the desktop
+ * app steers this page. The web page is the terminal window, not a second one.
  */
-export async function initSessions({ plans, active }) {
+export async function initSessions({ awaiting }) {
   const el = (id) => document.getElementById(id)
   const sessTree = el('sess-tree')
   const offline = el('agterm-offline')
-  const view = el('session-view')
   const title = el('sess-title')
   const meta = el('sess-meta')
-  const rail = el('rail')
-  const sessRail = el('sess-rail')
   const info = el('sess-info')
-  const approveCard = el('sess-approve')
+  const approveStrip = el('approve-strip')
   const actions = el('sess-actions')
 
   let snapshot = { windows: [], activeSessionId: null, pendingBySession: {} }
@@ -79,8 +77,8 @@ export async function initSessions({ plans, active }) {
   })
 
   const approveChip = createApprove({
-    note: el('sess-approve-note'),
-    buttons: el('sess-approve-buttons'),
+    note: el('approve-note'),
+    buttons: el('approve-buttons'),
   })
 
   function composerNote(message) {
@@ -148,7 +146,7 @@ export async function initSessions({ plans, active }) {
       meta.replaceChildren()
       info.replaceChildren()
       actions.replaceChildren()
-      approveCard.hidden = true
+      approveStrip.hidden = true
       return
     }
 
@@ -164,7 +162,7 @@ export async function initSessions({ plans, active }) {
 
     renderInfo(node)
     renderActions(node)
-    renderApproveCard()
+    renderApprove()
   }
 
   function renderInfo(node) {
@@ -256,19 +254,24 @@ export async function initSessions({ plans, active }) {
     })
   }
 
-  function renderApproveCard() {
+  function renderApprove() {
     const planId = snapshot.pendingBySession?.[viewSid]
-    const entry = planId && plans.latest().awaiting?.[planId]
-    approveCard.hidden = !entry
-    if (entry) approveChip.render({ id: planId }, entry)
-    else approveChip.clear()
+    const entry = awaiting.get(planId)
+    const wasHidden = approveStrip.hidden
+    approveStrip.hidden = !entry
+    if (entry) {
+      approveChip.render({ id: planId }, entry)
+      // Appearing grows the feed; if the reader was at the bottom, keep them there.
+      if (wasHidden) scrollback.withPin(() => {})
+    } else {
+      approveChip.clear()
+    }
   }
 
   /* ---------- the one panel ---------- */
 
   function syncPanels() {
-    const visible = active() && document.visibilityState === 'visible'
-    if (visible && viewSid) {
+    if (document.visibilityState === 'visible' && viewSid) {
       screen.show(viewSid, nodeOf(viewSid))
       scrollback.show(viewSid)
     } else {
@@ -302,7 +305,7 @@ export async function initSessions({ plans, active }) {
       if (msg.type === 'reset') {
         // The event ring was lost — everything known may be stale. Full resync.
         refreshTree()
-        if (tab === 'screen') screen.reopen()
+        screen.reopen()
         return
       }
       if (msg.type === 'agterm') {
@@ -316,14 +319,14 @@ export async function initSessions({ plans, active }) {
   })
 
   // The approve chip's options are read live off the terminal and arrive via /api/plans.
-  plans.onUpdate(() => renderApproveCard())
+  awaiting.onUpdate(renderApprove)
 
   document.addEventListener('visibilitychange', syncPanels)
 
   /* ---------- keyboard: j/k walk, n = next needing attention ---------- */
 
   document.addEventListener('keydown', (event) => {
-    if (!active() || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
     const target = event.target
     if (target.closest?.('input, textarea, [contenteditable]')) return
     if (screen.rawActive()) return
@@ -348,21 +351,5 @@ export async function initSessions({ plans, active }) {
 
   await refreshTree()
 
-  return {
-    activate() {
-      view.hidden = false
-      sessTree.hidden = false
-      rail.hidden = false
-      sessRail.hidden = false
-      refreshTree()
-      syncPanels()
-    },
-    deactivate() {
-      view.hidden = true
-      sessTree.hidden = true
-      sessRail.hidden = true
-      screen.hide()
-      scrollback.hide()
-    },
-  }
+  return { refreshTree }
 }

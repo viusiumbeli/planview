@@ -1,22 +1,17 @@
 # planview
 
-A web mirror of [agterm](https://github.com/umputun/agterm) and a reader for Claude Code plan-mode
-markdown, in one pinned tab.
+A web mirror of [agterm](https://github.com/umputun/agterm) in one pinned tab: the whole window →
+workspace → session tree with live agent-status dots, the selected session's screen streaming as it
+changes, everything that session has already done above it in one continuous scroll, a composer
+that types into it, a raw-key mode for driving TUIs, and the session-management verbs (new, close,
+rename, flag). It is a FULL mirror: picking a session in the browser selects it in the desktop app,
+and selecting one in the desktop app steers the browser.
 
-**Sessions mode** (the home surface) mirrors the terminal: the whole window → workspace → session
-tree with live agent-status dots, the selected session's screen streaming as it changes, a composer
-that types into the session (multi-line prompts land unsubmitted via Claude's line continuation), a
-raw-key mode for driving TUIs, the full conversation history read out of Claude Code's own JSONL
-transcripts, and the session-management verbs (new, close, rename, flag). It is a FULL mirror:
-picking a session in the browser selects it in the desktop app, and selecting one in the desktop
-app steers the browser.
-
-**Plans mode** is the original page: Claude writes every plan to `~/.claude/plans/*.md`; planview
-watches that directory and renders the newest plan — tables, nested lists and fenced code as markup
-rather than ASCII — with approval buttons when a session is waiting at the `Ready to code?` prompt.
-
-The switch between the two sits in the sidebar header; `#/plans` deep-links Plans mode so a pinned
-tab can keep living there.
+Plans live where the terminal puts them — **inside the session's feed**, at the moment the agent
+presented one, except rendered as markdown: tables, nested lists and fenced code as markup rather
+than ASCII, which is why this started as a plan reader. When a session is waiting at the
+`Ready to code?` prompt, that prompt's own options appear as buttons right under the plan, and
+clicking one answers the terminal.
 
 ## Install
 
@@ -36,7 +31,7 @@ Or run it by hand:
 header against a loopback allowlist (screens and transcripts are secrets), and requires same-origin
 on every mutating request.
 
-## Sessions mode — the terminal in a tab
+## The one surface
 
 The sidebar is agterm's own tree, live: workspaces collapse like the desktop sidebar, each session
 row carries its status dot (`idle` hollow, `active` blue — pulsing while the agent works, `blocked`
@@ -45,7 +40,7 @@ an `awaiting` badge when a plan approval is pending. `j`/`k` walk the sessions, 
 next one needing attention. Everything updates by push: the daemon runs one polling loop over
 agterm's event ring (`events.read`) and broadcasts translated events over SSE.
 
-The session view is ONE full-bleed scroll — no tabs, no split: the live frame sits at the bottom,
+The page is ONE full-bleed scroll — no tabs, no split, no modes: the live frame sits at the bottom,
 and scrolling up walks the session's past as a single continuous feed. The live half: agterm has no
 terminal-output stream and strips ANSI, so the daemon polls `session text` — 500 ms while the
 session looks alive, 2 s when idle, 300 ms right after you type — hashes each frame, and pushes
@@ -56,7 +51,10 @@ lines while the agent works (the streaming and the spinner stay visible), ~12 wh
 input box), the whole screen in raw-key mode — everything completed is told by the past half
 instead. That past is the transcript Claude Code records to
 `~/.claude/projects/<cwd>/<session>.jsonl`, rendered as a terminal-style monospace log (`>`
-prompts, `⏺` turns, `  ⎿` results folded to five lines, `✻ thinking…` collapsed) — not a chat.
+prompts, `⏺` turns, `  ⎿` results folded to five lines, `✻ thinking…` collapsed) — not a chat. The
+one thing that is not monospace is a plan: `ExitPlanMode` carries its full markdown, so it renders
+as a document in the feed (the transcript clips a very long one, and the plan file fills it back
+in).
 Pages of 100 lines load backwards by byte offset as you scroll up (a 12 MB transcript costs two
 reads, never a full parse), new entries stream in live — appended silently when you are pinned to
 the bottom, offered as a `↓ live` pill when you are reading above. agterm knows nothing about
@@ -74,44 +72,24 @@ border while it is on; it drops itself on blur and after 60 s of silence. `Esc` 
 sit as one-click buttons. The browser only ever sends *named* key tokens; the escape bytes live in
 one server-side table, and control characters are stripped out of plain text.
 
-When a session is blocked on a plan approval, the same approve buttons Plans mode has appear in the
-session's rail — so the everyday loop (see who needs you → answer → watch it go) happens without
-leaving the session; the plan text itself is read in Plans mode.
+When a session is blocked on a plan approval, the prompt's own options appear as buttons between
+the feed and the live frame — which is exactly under the plan, since the plan is the last thing
+that happened. They are **read off the live terminal**, not hardcoded (see below), so the buttons
+say what the prompt says.
 
 If agterm is not running, `/api/term/*` answers 503, the page shows an offline banner, and the
 daemon retries forever; an agterm restart resets the event ring, which is surfaced to every tab as
 a full resync — never silently rebased.
 
-## Plans mode
+## Approving a plan from the browser
 
-### The sidebar
+Optional, and agterm-only. With the hook below installed, a session sitting at the approval prompt
+gets an `awaiting` badge in the tree and that prompt's own options as buttons under its plan.
+Clicking one continues that session.
 
-Plans are grouped by day, newest first, and labelled with their `# H1` — the filenames
-(`https-trade-team-atlassian-net-browse-co-proud-scott.md`) are not readable. Subagent plans
-(`<parent>-agent-<id>.md`) nest under the plan they came from, with the agent's name as a badge
-when the filename carries one.
-
-The last 7 days are shown by default; `Older` expands to the full archive.
-
-### The reading pane
-
-Three columns: the plan list, the plan, and an outline of its `##`/`###` headings. The outline
-highlights the section you are in and jumps to any other; it hides itself for a plan with no
-sections, and drops out entirely below 1200px.
-
-Prose is capped at a readable measure and centred, while **tables and fenced code break out wider**
-— those are what the terminal rendered worst, so they get the room. A table too wide even for that
+Prose in a plan is capped at a readable measure, while **tables and fenced code break out wider** —
+those are what the terminal rendered worst, so they get the room. A table too wide even for that
 scrolls inside its own box, so the page itself never scrolls sideways.
-
-The plan's title, time and filename sit in a header that stays put while the body scrolls, next to
-**lock view** — which freezes the current plan. Without it the newest plan always wins, which is
-wrong when a parallel session writes a plan while you are still reading this one.
-
-### Approving from the browser
-
-Optional, and agterm-only. With the hook below installed, a plan whose session is sitting at the
-approval prompt gets an `awaiting` badge in the sidebar and that prompt's own options as buttons in
-its header. Clicking one continues that session.
 
 The buttons are **read off the live terminal**, not hardcoded — the wording changes with the build and
 the context (`Yes, and use auto mode`, `Yes, auto-accept edits`, `Yes, clear context … and
@@ -127,7 +105,7 @@ The option the prompt already has its cursor on is shown as the primary button.
 ]
 ```
 
-A second, optional hook feeds Sessions mode's history mapping — `SessionStart` →
+A second, optional hook feeds the feed's transcript mapping — `SessionStart` →
 `hooks/session-map.sh` POSTs `{claudeSessionId, transcriptPath, agtermSessionId}` so a session's
 transcript is known exactly instead of guessed (both hooks are registered the same way in
 `~/.claude/settings.json`; `PLANVIEW_PIN_RESTORE=1` additionally pins `claude --resume <id>` as the

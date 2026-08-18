@@ -1,4 +1,5 @@
 import { api } from '../lib/api.js'
+import { renderMarkdown } from '../lib/markdown.js'
 import { entryRows } from './termlog.js'
 
 const CONFIDENCE_LABEL = {
@@ -72,11 +73,43 @@ export function createScrollback({ container, past, topSentinel, pill, mapNote }
     return div
   }
 
+  // A plan reads as a document, not as terminal text — tables and nested lists as markup is the
+  // one thing the terminal did badly, and the reason this page exists at all.
+  function planElement(row) {
+    const card = document.createElement('div')
+    card.className = 'plan-card'
+
+    const label = document.createElement('div')
+    label.className = 'plan-label'
+    label.textContent = 'plan'
+    card.append(label)
+
+    const body = document.createElement('div')
+    body.append(renderMarkdown(row.text))
+    card.append(body)
+
+    // The transcript clips a very long plan; the plan file itself has all of it.
+    if (row.plan.truncated && row.plan.planId) {
+      fetch(`/api/plan?id=${encodeURIComponent(row.plan.planId)}`)
+        .then((res) => (res.ok ? res.text() : null))
+        .then((full) => full && body.replaceChildren(renderMarkdown(full)))
+        .catch(() => {})
+    } else if (row.plan.truncated) {
+      const note = document.createElement('div')
+      note.className = 'plan-clipped'
+      note.textContent = '… plan clipped, and its file is gone'
+      card.append(note)
+    }
+    return card
+  }
+
   function entryElement(entry) {
     const section = document.createElement('div')
     section.className = 't-entry'
     if (entry.ts) section.title = new Date(entry.ts).toLocaleString()
-    for (const row of entryRows(entry)) section.append(rowElement(row))
+    for (const row of entryRows(entry)) {
+      section.append(row.plan ? planElement(row) : rowElement(row))
+    }
     return section
   }
 

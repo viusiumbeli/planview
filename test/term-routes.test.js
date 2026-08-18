@@ -295,8 +295,11 @@ test('history serves shaped entries once the hook has registered the transcript'
     assert.equal(history.source.claudeSessionId, CLAUDE)
     assert.deepEqual(
       history.entries.map((e) => e.uuid),
-      ['u1', 'a1', 'u2', 'a2', 'u3'],
+      ['u1', 'a1', 'u2', 'a2', 'u3', 'plan1'],
     )
+    // The plan rides the wire whole, ready to render as markdown in the feed.
+    assert.equal(history.entries.at(-1).blocks[0].kind, 'plan')
+    assert.equal(history.entries.at(-1).blocks[0].planId, 'quiet-pebble')
   })
 })
 

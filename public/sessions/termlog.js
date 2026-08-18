@@ -20,13 +20,28 @@ const firstLine = (text) => text.split('\n', 1)[0]
  * @param {number} [options.labelChars] input preview length in a tool_use label
  * @returns {Array<{cls: string, err: boolean, text: string,
  *                  more: null | {label: string, hidden: string},
- *                  fetch: null | {offset: number, block: number}}>}
+ *                  fetch: null | {offset: number, block: number},
+ *                  plan?: {planId: string | null, truncated: boolean}}>}
  */
 export function entryRows(entry, { resultLines = 5, labelChars = 100 } = {}) {
   const rows = []
 
   for (const block of entry.blocks ?? []) {
     const fetch = block.truncated ? { offset: entry.offset, block: block.i } : null
+
+    // A plan is not log text: the row carries the raw markdown and lets the renderer draw it as a
+    // document, which is the one thing the terminal could not do well.
+    if (block.kind === 'plan') {
+      rows.push({
+        cls: 't-plan',
+        err: false,
+        text: block.text,
+        more: null,
+        fetch: null,
+        plan: { planId: block.planId ?? null, truncated: Boolean(block.truncated) },
+      })
+      continue
+    }
 
     if (block.kind === 'text' && entry.role === 'user') {
       rows.push({ cls: 't-user', err: false, text: indent(block.text, '> ', '  '), more: null, fetch })

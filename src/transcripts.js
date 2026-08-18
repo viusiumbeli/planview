@@ -11,6 +11,10 @@ import { watch } from 'node:fs'
  * (mode, file-history-*, attachment, …). Sidechain entries — subagent traffic recorded into the
  * same file — are dropped too: interleaving them with the main thread reads as nonsense.
  */
+// `~/.claude/plans/quiet-pebble.md` → `quiet-pebble`, the id /api/plan serves a plan file by.
+const planIdOf = (path) =>
+  typeof path === 'string' && path.endsWith('.md') ? path.slice(path.lastIndexOf('/') + 1, -3) : null
+
 export function createTranscripts({
   chunk = 64 * 1024,
   maxToolBytes = 4 * 1024,
@@ -65,7 +69,18 @@ export function createTranscripts({
         content.forEach((block, i) => {
           if (block?.type === 'text') blocks.push({ kind: 'text', i, ...clip(block.text ?? '', maxTextBytes) })
           else if (block?.type === 'thinking') blocks.push({ kind: 'thinking', i, ...clip(block.thinking ?? '', maxToolBytes) })
-          else if (block?.type === 'tool_use') {
+          // A plan is not a tool call to skim past — reading it as rendered markdown is the whole
+          // reason planview exists, so it gets its own kind, the prose budget instead of the tool
+          // budget, and the plan file's id for the full-text fallback.
+          else if (block?.type === 'tool_use' && block.name === 'ExitPlanMode') {
+            blocks.push({
+              kind: 'plan',
+              i,
+              id: block.id,
+              planId: planIdOf(block.input?.planFilePath),
+              ...clip(block.input?.plan ?? '', maxTextBytes),
+            })
+          } else if (block?.type === 'tool_use') {
             blocks.push({
               kind: 'tool_use',
               i,

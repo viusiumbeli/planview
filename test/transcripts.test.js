@@ -16,10 +16,71 @@ test('page keeps the conversation and drops bookkeeping and sidechain lines', as
 
   assert.deepEqual(
     entries.map((e) => e.uuid),
-    ['u1', 'a1', 'u2', 'a2', 'u3'],
+    ['u1', 'a1', 'u2', 'a2', 'u3', 'plan1'],
   )
   assert.equal(skipped, 0)
   assert.equal(hasMore, false)
+})
+
+test('a plan is its own kind, kept whole, carrying the plan file id', async () => {
+  // Reading the plan as markdown is the point of planview, so it gets the prose budget and never
+  // arrives clipped to a tool-call preview.
+  const { entries } = await transcripts.page(FIXTURE)
+  const [plan] = entries.at(-1).blocks
+
+  assert.equal(plan.kind, 'plan')
+  assert.equal(plan.planId, 'quiet-pebble')
+  assert.equal(plan.truncated, false)
+  assert.match(plan.text, /^# Plan title/)
+  assert.match(plan.text, /\| col \| col2 \|/)
+})
+
+test('a plan without a file path still renders; only the fallback id is missing', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'planview-transcripts-'))
+  const path = join(dir, 'plan.jsonl')
+  await writeFile(
+    path,
+    JSON.stringify({
+      type: 'assistant',
+      uuid: 'p',
+      timestamp: 't',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'x', name: 'ExitPlanMode', input: { plan: '# only inline' } }],
+      },
+    }) + '\n',
+  )
+
+  const [{ blocks }] = (await transcripts.page(path)).entries
+  assert.equal(blocks[0].kind, 'plan')
+  assert.equal(blocks[0].planId, null)
+  assert.equal(blocks[0].text, '# only inline')
+})
+
+test('an oversized plan is clipped to the prose budget, not the tool budget', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'planview-transcripts-'))
+  const path = join(dir, 'big-plan.jsonl')
+  const plan = '# huge\n' + 'x'.repeat(20_000)
+  await writeFile(
+    path,
+    JSON.stringify({
+      type: 'assistant',
+      uuid: 'p',
+      timestamp: 't',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'x', name: 'ExitPlanMode', input: { plan, planFilePath: '/p/plans/big.md' } },
+        ],
+      },
+    }) + '\n',
+  )
+
+  const tight = createTranscripts({ maxToolBytes: 100, maxTextBytes: 1000 })
+  const [{ blocks }] = (await tight.page(path)).entries
+  assert.equal(blocks[0].text.length, 1000)
+  assert.equal(blocks[0].truncated, true)
+  assert.equal(blocks[0].planId, 'big')
 })
 
 test('page shapes user text, tool calls, results and thinking into typed blocks', async () => {

@@ -16,41 +16,14 @@
     <aside id="sidebar">
       <header>
         <h1>planview</h1>
-        <nav id="mode" aria-label="Mode">
-          <button id="mode-sessions" class="mode-tab">Sessions</button>
-          <button id="mode-plans" class="mode-tab">Plans</button>
-        </nav>
         <span id="status" title="connection to the planview daemon"></span>
       </header>
       <div id="agterm-offline" hidden>agterm is not reachable</div>
-      <nav id="sess-tree" aria-label="Sessions" hidden></nav>
-      <nav id="tree" aria-label="Plans"></nav>
+      <nav id="sess-tree" aria-label="Sessions"></nav>
     </aside>
 
     <main id="pane">
-      <!-- Plans mode: exactly the pre-mirror page, untouched ids -->
-      <section id="plans-view">
-      <header id="plan-header" hidden>
-        <div id="plan-titles">
-          <h2 id="plan-title"></h2>
-          <div id="plan-meta"></div>
-        </div>
-        <div id="approve" hidden>
-          <span id="approve-note"></span>
-          <div id="approve-buttons"></div>
-        </div>
-        <label id="lock" title="stop a newer plan from replacing this one">
-          <input type="checkbox" id="lock-input" />
-          <span>lock view</span>
-        </label>
-      </header>
-      <div id="doc">
-        <div class="empty">No plans yet.</div>
-      </div>
-      </section>
-
-      <!-- Sessions mode: the agterm mirror -->
-      <section id="session-view" hidden>
+      <section id="session-view">
         <header id="sess-header">
           <div id="sess-titles">
             <h2 id="sess-title">no session</h2>
@@ -58,7 +31,7 @@
           </div>
         </header>
 
-        <div id="screen-wrap" class="tabpane">
+        <div id="screen-wrap">
           <div id="screen-bar">
             <div id="pane-chips"></div>
             <span class="bar-space"></span>
@@ -71,6 +44,12 @@
           <div id="raw-banner" hidden></div>
           <div id="term-scroll">
             <div id="past"><div id="past-top"></div></div>
+            <!-- The prompt sits where it happened: under everything the feed has, above the live
+                 frame — and when a session is waiting, the plan is the last thing the feed has. -->
+            <div id="approve-strip" hidden>
+              <span id="approve-note"></span>
+              <div id="approve-buttons"></div>
+            </div>
             <pre id="frame" tabindex="-1"></pre>
           </div>
           <button id="live-pill" hidden>↓ live</button>
@@ -88,22 +67,11 @@
       </section>
     </main>
 
-    <aside id="rail" hidden>
-      <section id="outline-section">
-        <div class="rail-title">On this page</div>
-        <nav id="outline" aria-label="Outline"></nav>
-      </section>
-      <section id="sess-rail" hidden>
-        <div class="rail-title">Session</div>
-        <dl id="sess-info"></dl>
-        <div id="sess-approve" class="rail-card" hidden>
-          <div class="rail-title">Ready to code?</div>
-          <span id="sess-approve-note"></span>
-          <div id="sess-approve-buttons"></div>
-        </div>
-        <div class="rail-title">Actions</div>
-        <div id="sess-actions"></div>
-      </section>
+    <aside id="rail">
+      <div class="rail-title">Session</div>
+      <dl id="sess-info"></dl>
+      <div class="rail-title">Actions</div>
+      <div id="sess-actions"></div>
     </aside>
 
     <script src="/static/vendor/marked.min.js"></script>
