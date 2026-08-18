@@ -1,0 +1,591 @@
+/* Sessions mode — every rule here is additive; style.css is never edited. Tokens are aliases so
+   dark mode is inherited for free. */
+
+:root {
+  --status-active: var(--accent);
+  --status-blocked: var(--waiting);
+  --status-done: var(--ok);
+  --status-idle: var(--fg-muted);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+/* ---------- mode switch ---------- */
+
+#mode {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mode-tab {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  cursor: pointer;
+}
+
+.mode-tab.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+#agterm-offline {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--waiting);
+  background: color-mix(in srgb, var(--waiting) 10%, transparent);
+  color: var(--waiting);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ---------- session tree ---------- */
+
+#sess-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 1.5rem;
+}
+
+#sess-tree .window-label {
+  padding: 0.5rem 1rem 0.1rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.session {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 0.45rem;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.32rem 0.85rem 0.36rem 1rem;
+  border-left: 2px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+.session:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.session.selected {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.session .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session .marks {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  align-self: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--border);
+  flex: none;
+}
+
+.dot.idle {
+  border-color: var(--status-idle);
+}
+
+.dot.active {
+  background: var(--status-active);
+  border-color: var(--status-active);
+}
+
+.dot.blocked {
+  background: var(--status-blocked);
+  border-color: var(--status-blocked);
+}
+
+.dot.completed {
+  background: var(--status-done);
+  border-color: var(--status-done);
+}
+
+.dot.blink {
+  animation: dot-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes dot-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot.blink {
+    animation: none;
+  }
+}
+
+.unseen {
+  min-width: 1.1rem;
+  text-align: center;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--new);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.flagmark {
+  color: var(--waiting);
+}
+
+#sess-tree .new-session {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: 0.6rem 1rem 0;
+  padding: 0.3rem 0.6rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+#sess-tree .new-session:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- session view layout ---------- */
+
+#session-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+#sess-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: none;
+  padding: 0.85rem 2rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+#sess-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+#sess-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sess-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+#sess-meta .cwd {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabpane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- live frame ---------- */
+
+#screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  padding: 0.45rem 2rem;
+}
+
+.bar-space {
+  flex: 1;
+}
+
+#pane-chips {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chip.danger {
+  border-color: color-mix(in srgb, var(--waiting) 55%, transparent);
+  color: var(--waiting);
+}
+
+.chip.danger:hover {
+  border-color: var(--waiting);
+  background: color-mix(in srgb, var(--waiting) 10%, transparent);
+  color: var(--waiting);
+}
+
+.chip.raw-on {
+  background: var(--waiting);
+  border-color: var(--waiting);
+  color: #fff;
+  font-weight: 700;
+}
+
+#frame-age {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+#frame-age.stale {
+  color: var(--waiting);
+  font-weight: 600;
+}
+
+#raw-banner {
+  flex: none;
+  margin: 0 1.5rem 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--waiting);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--waiting) 10%, transparent);
+  color: var(--waiting);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* The unified feed: transcript log above, live frame below, ONE scroll container. */
+
+#term-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-elevated);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+#past {
+  padding: 0.9rem 1.5rem 0;
+}
+
+#past:empty,
+#past:has(> #past-top:only-child) {
+  padding: 0;
+}
+
+.t-entry + .t-entry {
+  margin-top: 0.7rem;
+}
+
+.t-row {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.t-user {
+  color: var(--fg-muted);
+}
+
+.t-tool {
+  color: var(--accent);
+}
+
+.t-result {
+  color: var(--fg-muted);
+}
+
+.t-think {
+  color: var(--fg-muted);
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.t-err {
+  color: #f85149;
+}
+
+.t-more {
+  margin-left: 0.6rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.t-more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#frame {
+  margin: 0;
+  padding: 0.7rem 1.5rem 0.9rem;
+  white-space: pre;
+  outline: none;
+}
+
+#frame.raw-on {
+  border: 2px solid var(--waiting);
+  border-radius: 8px;
+}
+
+#frame.gone {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+#screen-wrap {
+  position: relative;
+}
+
+#live-pill {
+  position: absolute;
+  right: 3rem;
+  bottom: 1.8rem;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+
+#map-note {
+  font-size: 0.72rem;
+  color: var(--waiting);
+}
+
+/* ---------- composer ---------- */
+
+#composer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex: none;
+  padding: 0 2rem 0.35rem;
+}
+
+#composer-input {
+  flex: 1;
+  resize: none;
+  max-height: 11rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+#composer-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+#composer-send {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#composer-note {
+  flex: none;
+  min-height: 1.2rem;
+  padding: 0 2rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+#composer-note.error {
+  color: var(--waiting);
+}
+
+/* ---------- rail ---------- */
+
+#sess-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0;
+}
+
+#sess-info {
+  margin: 0 1.25rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+#sess-info dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  margin-top: 0.5rem;
+}
+
+#sess-info dd {
+  margin: 0.05rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+#sess-info dd.mono {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.rail-card {
+  margin: 0 1rem 0.8rem;
+  padding: 0.6rem 0.25rem 0.7rem;
+  border: 1px solid var(--waiting);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--waiting) 7%, transparent);
+}
+
+.rail-card .rail-title {
+  color: var(--waiting);
+}
+
+#sess-approve-note {
+  display: block;
+  padding: 0 1.25rem 0.4rem;
+  font-size: 0.75rem;
+  color: var(--waiting);
+}
+
+#sess-approve-note.error {
+  color: var(--fg-muted);
+}
+
+#sess-approve-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0 1.25rem;
+}
+
+#sess-approve-buttons .choice {
+  white-space: normal;
+  text-align: left;
+}
+
+#sess-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0 1.25rem 1rem;
+}
+
+#sess-actions .chip.armed {
+  background: var(--waiting);
+  border-color: var(--waiting);
+  color: #fff;
+}
+
+#sess-actions .rename-input {
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8rem;
+}

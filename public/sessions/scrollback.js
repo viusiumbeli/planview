@@ -1,0 +1,188 @@
+import { api } from '../lib/api.js'
+import { entryRows } from './termlog.js'
+
+const CONFIDENCE_LABEL = {
+  restore: 'history: по restore-команде',
+  ps: 'history: по живому процессу',
+  guessed: 'history: догадка по каталогу',
+}
+
+/**
+ * The past half of the unified terminal feed: the session's transcript rendered as a monospace
+ * terminal log ABOVE the live frame, in the one shared scroll container. Newest page first,
+ * older pages lazy-load as the top scrolls into view, live entries stream in — appended silently
+ * when the reader is pinned to the bottom, offered as a "↓ live" pill when not.
+ */
+export function createScrollback({ container, past, topSentinel, pill, mapNote }) {
+  let sid = null
+  let events = null
+  let nextBefore = null
+  let hasMore = false
+  let loadingOlder = false
+
+  const atBottom = () => container.scrollHeight - container.scrollTop - container.clientHeight < 60
+  const scrollToBottom = () => {
+    container.scrollTop = container.scrollHeight
+    pill.hidden = true
+  }
+  pill.addEventListener('click', scrollToBottom)
+  container.addEventListener('scroll', () => {
+    if (atBottom()) pill.hidden = true
+  })
+
+  /* ---------- rendering ---------- */
+
+  function rowElement(row) {
+    const div = document.createElement('div')
+    div.className = `t-row ${row.cls}${row.err ? ' t-err' : ''}`
+
+    const text = document.createElement('span')
+    text.textContent = row.text
+    div.append(text)
+
+    if (row.more || row.fetch) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 't-more'
+      button.textContent = row.more?.label ?? 'целиком'
+      button.addEventListener('click', async () => {
+        if (row.more) text.textContent += `\n${row.more.hidden}`
+        if (row.fetch) {
+          button.textContent = '…'
+          try {
+            const { block } = await api.historyBlock(sid, row.fetch.offset, row.fetch.block)
+            const full =
+              typeof block.text === 'string'
+                ? block.text
+                : typeof block.content === 'string'
+                  ? block.content
+                  : typeof block.thinking === 'string'
+                    ? block.thinking
+                    : JSON.stringify(block.input ?? block.content ?? block, null, 1)
+            text.textContent = `${row.text.split('\n')[0]}\n${full.split('\n').map((l) => `  ${l}`).join('\n')}`
+          } catch (err) {
+            button.textContent = err.message
+            return
+          }
+        }
+        button.remove()
+      })
+      div.append(button)
+    }
+    return div
+  }
+
+  function entryElement(entry) {
+    const section = document.createElement('div')
+    section.className = 't-entry'
+    if (entry.ts) section.title = new Date(entry.ts).toLocaleString()
+    for (const row of entryRows(entry)) section.append(rowElement(row))
+    return section
+  }
+
+  /* ---------- loading ---------- */
+
+  async function loadNewest() {
+    let page
+    try {
+      page = await api.history(sid, { limit: 100 })
+    } catch (err) {
+      // No transcript mapped (or unreadable) — the live frame still works; the past is just empty.
+      mapNote.hidden = false
+      mapNote.textContent = 'history: недоступна'
+      mapNote.title = err.message
+      return false
+    }
+    nextBefore = page.nextBefore
+    hasMore = page.hasMore
+
+    const confidence = page.source?.confidence
+    mapNote.hidden = !CONFIDENCE_LABEL[confidence]
+    mapNote.textContent = CONFIDENCE_LABEL[confidence] ?? ''
+    mapNote.title = 'сопоставление сессия↔транскрипт не подтверждено хуком — возможна чужая история'
+
+    for (const entry of page.entries) past.append(entryElement(entry))
+    observer.observe(topSentinel)
+    return true
+  }
+
+  async function loadOlder() {
+    if (!hasMore || loadingOlder || !sid) return
+    loadingOlder = true
+    try {
+      const page = await api.history(sid, { before: nextBefore, limit: 100 })
+      nextBefore = page.nextBefore
+      hasMore = page.hasMore
+      const grewBy = () => container.scrollHeight
+      const before = grewBy()
+      const fragment = document.createDocumentFragment()
+      for (const entry of page.entries) fragment.append(entryElement(entry))
+      topSentinel.after(fragment)
+      // Keep the reader's place: the content above them grew, so the scroll offset must too.
+      container.scrollTop += grewBy() - before
+    } catch {
+      // scrolling further retries
+    } finally {
+      loadingOlder = false
+    }
+  }
+
+  const observer = new IntersectionObserver(
+    (intersections) => {
+      if (intersections.some((entry) => entry.isIntersecting)) loadOlder()
+    },
+    { root: container },
+  )
+
+  function openStream() {
+    events?.close()
+    events = new EventSource(`/api/term/sessions/${sid}/history/stream`)
+    events.addEventListener('message', (event) => {
+      let data
+      try {
+        data = JSON.parse(event.data)
+      } catch {
+        return
+      }
+      if (!data.entries?.length) return
+      const pinned = atBottom()
+      for (const entry of data.entries) past.append(entryElement(entry))
+      if (pinned) scrollToBottom()
+      else pill.hidden = false
+    })
+  }
+
+  /* ---------- lifecycle ---------- */
+
+  return {
+    async show(nextSid) {
+      if (nextSid === sid && events) return
+      sid = nextSid
+      events?.close()
+      events = null
+      observer.disconnect()
+      for (const el of [...past.children]) if (el !== topSentinel) el.remove()
+      pill.hidden = true
+      mapNote.hidden = true
+      nextBefore = null
+      hasMore = false
+
+      if (!sid) return
+      const loaded = await loadNewest()
+      scrollToBottom()
+      if (loaded) openStream()
+    },
+
+    hide() {
+      events?.close()
+      events = null
+    },
+
+    /** The live frame is about to change size: keep the bottom pinned iff the reader is there. */
+    withPin(mutate) {
+      const pinned = atBottom()
+      mutate()
+      if (pinned) scrollToBottom()
+    },
+  }
+}
