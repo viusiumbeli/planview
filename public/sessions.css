@@ -187,13 +187,27 @@
   color: var(--accent);
 }
 
-/* ---------- session view layout ---------- */
+/* ---------- mode panels ---------- */
 
+/* Both modes are flex columns filling #pane, because the scrolling children inside them (#doc,
+   #term-scroll) are `flex: 1; min-height: 0; overflow: auto` — a plain block wrapper makes them
+   grow to their content instead, and #pane's overflow:hidden then clips it with no scrollbar. */
+#plans-view,
 #session-view {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
+}
+
+/* An author `display` beats the UA's `[hidden] { display: none }` — origin outranks specificity —
+   so every element that sets display AND gets toggled by the hidden attribute needs this guard.
+   style.css does the same for #approve and #rail. */
+#plans-view[hidden],
+#session-view[hidden],
+#sess-rail[hidden],
+#plan-header[hidden] {
+  display: none;
 }
 
 #sess-header {
