@@ -15,6 +15,9 @@ app steers the browser.
 watches that directory and renders the newest plan — tables, nested lists and fenced code as markup
 rather than ASCII — with approval buttons when a session is waiting at the `Ready to code?` prompt.
 
+The switch between the two sits in the sidebar header; `#/plans` deep-links Plans mode so a pinned
+tab can keep living there.
+
 ## Install
 
 ```sh
@@ -42,22 +45,25 @@ an `awaiting` badge when a plan approval is pending. `j`/`k` walk the sessions, 
 next one needing attention. Everything updates by push: the daemon runs one polling loop over
 agterm's event ring (`events.read`) and broadcasts translated events over SSE.
 
-The **Screen** tab is one unified feed that scrolls like a terminal: the live frame sits at the
-bottom, and scrolling up walks the session's past. The live half: agterm has no terminal-output
-stream and strips ANSI, so the daemon polls `session text` — 500 ms while the session looks alive,
-2 s when idle, 300 ms right after you type — hashes each frame, and pushes only changes to only the
-sessions somebody is actually watching. Claude Code runs in the alternate screen, so the frame IS
-everything agterm itself can show; there is no scrollback buffer to read. The past half is
-therefore the transcript Claude Code records to `~/.claude/projects/<cwd>/<session>.jsonl`,
-rendered as a terminal-style monospace log (`>` prompts, `⏺` turns, `  ⎿` results folded to five
-lines, `✻ thinking…` collapsed) — not a chat. Pages of 100 lines load backwards by byte offset as
-you scroll up (a 12 MB transcript costs two reads, never a full parse), new entries stream in live
-— appended silently when you are pinned to the bottom, offered as a `↓ live` pill when you are
-reading above. agterm knows nothing about transcripts, so the mapping is assembled — a
-`SessionStart` hook registers the exact pairing; before the hook existed, a live `claude` process's
-environment (`ps eww` → `AGTERM_SESSION_ID`) or the newest transcript for the session's directory
-fills in, and a chip in the toolbar says plainly when it is guessing. Chips switch between
-main/split/scratch panes when they exist.
+The session view is ONE full-bleed scroll — no tabs, no split: the live frame sits at the bottom,
+and scrolling up walks the session's past as a single continuous feed. The live half: agterm has no
+terminal-output stream and strips ANSI, so the daemon polls `session text` — 500 ms while the
+session looks alive, 2 s when idle, 300 ms right after you type — hashes each frame, and pushes
+only changes to only the sessions somebody is actually watching. Claude Code runs in the alternate
+screen, so the frame is everything agterm itself can show; there is no scrollback buffer to read.
+To keep the feed reading as one story instead of two, the frame is cropped adaptively: ~30 bottom
+lines while the agent works (the streaming and the spinner stay visible), ~12 when idle (just the
+input box), the whole screen in raw-key mode — everything completed is told by the past half
+instead. That past is the transcript Claude Code records to
+`~/.claude/projects/<cwd>/<session>.jsonl`, rendered as a terminal-style monospace log (`>`
+prompts, `⏺` turns, `  ⎿` results folded to five lines, `✻ thinking…` collapsed) — not a chat.
+Pages of 100 lines load backwards by byte offset as you scroll up (a 12 MB transcript costs two
+reads, never a full parse), new entries stream in live — appended silently when you are pinned to
+the bottom, offered as a `↓ live` pill when you are reading above. agterm knows nothing about
+transcripts, so the mapping is assembled — a `SessionStart` hook registers the exact pairing;
+before the hook existed, a live `claude` process's environment (`ps eww` → `AGTERM_SESSION_ID`) or
+the newest transcript for the session's directory fills in, and a chip in the toolbar says plainly
+when it is guessing. Chips switch between main/split/scratch panes when they exist.
 
 Input goes two ways. The **composer** sends a prompt: Enter sends, Shift+Enter breaks a line, and
 each newline is typed as backslash+Return — Claude Code's line continuation — so a multi-line brief
@@ -68,9 +74,9 @@ border while it is on; it drops itself on blur and after 60 s of silence. `Esc` 
 sit as one-click buttons. The browser only ever sends *named* key tokens; the escape bytes live in
 one server-side table, and control characters are stripped out of plain text.
 
-The **Plan** tab shows the plan the session is blocked on, with the same approve buttons in the
-rail — so the whole loop (see what the agent wants → read the plan → approve → watch it go) happens
-without leaving the session.
+When a session is blocked on a plan approval, the same approve buttons Plans mode has appear in the
+session's rail — so the everyday loop (see who needs you → answer → watch it go) happens without
+leaving the session; the plan text itself is read in Plans mode.
 
 If agterm is not running, `/api/term/*` answers 503, the page shows an offline banner, and the
 daemon retries forever; an agterm restart resets the event ring, which is surfaced to every tab as
@@ -121,7 +127,7 @@ The option the prompt already has its cursor on is shown as the primary button.
 ]
 ```
 
-A second, optional hook feeds Sessions mode's history mapping — `SessionStart` → 
+A second, optional hook feeds Sessions mode's history mapping — `SessionStart` →
 `hooks/session-map.sh` POSTs `{claudeSessionId, transcriptPath, agtermSessionId}` so a session's
 transcript is known exactly instead of guessed (both hooks are registered the same way in
 `~/.claude/settings.json`; `PLANVIEW_PIN_RESTORE=1` additionally pins `claude --resume <id>` as the
@@ -156,4 +162,5 @@ npm test    # node --test, no framework, no dependencies
 `marked` and `highlight.js` are committed under `public/vendor/` — there is no install step and no
 `node_modules`. The highlight bundle is the common build plus kotlin, groovy, json, yaml and diff.
 
-Design notes: [`docs/superpowers/specs/2026-08-10-planview-design.md`](docs/superpowers/specs/2026-08-10-planview-design.md).
+Design notes for the original plan reader:
+[`docs/superpowers/specs/2026-08-10-planview-design.md`](docs/superpowers/specs/2026-08-10-planview-design.md).
