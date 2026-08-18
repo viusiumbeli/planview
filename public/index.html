@@ -25,24 +25,23 @@
     <main id="pane">
       <section id="session-view">
         <header id="sess-header">
+          <span id="sess-dot" class="dot"></span>
           <div id="sess-titles">
             <h2 id="sess-title">no session</h2>
             <div id="sess-meta"></div>
           </div>
+          <!-- What am I looking at: which pane of this session. Navigation, not an action. -->
+          <div id="pane-chips"></div>
+          <div id="menu-wrap">
+            <button id="sess-menu-button" class="chip" title="session actions" aria-haspopup="true">⋯</button>
+            <div id="sess-menu" hidden></div>
+          </div>
         </header>
 
         <div id="screen-wrap">
-          <div id="screen-bar">
-            <div id="pane-chips"></div>
-            <span class="bar-space"></span>
-            <span id="map-note" hidden></span>
-            <button id="raw-toggle" class="chip" title="type straight into the terminal">⌨ raw keys</button>
-            <button id="key-esc" class="chip danger" title="send Escape">Esc</button>
-            <button id="key-ctrlc" class="chip danger" title="send Ctrl+C">Ctrl+C</button>
-            <span id="frame-age"></span>
-          </div>
-          <div id="raw-banner" hidden></div>
           <div id="term-scroll">
+            <!-- Whose past this is, stated where the past begins. -->
+            <div id="feed-note" hidden></div>
             <div id="past"><div id="past-top"></div></div>
             <!-- The prompt sits where it happened: under everything the feed has, above the live
                  frame — and when a session is waiting, the plan is the last thing the feed has. -->
@@ -52,27 +51,32 @@
             </div>
             <pre id="frame" tabindex="-1"></pre>
           </div>
+          <!-- Only speaks up when the mirror is behind or reconnecting. -->
+          <div id="frame-status" hidden></div>
           <button id="live-pill" hidden>↓ live</button>
         </div>
 
         <form id="composer">
+          <!-- One question — what happens when I press a key — answered in one place. -->
+          <div id="input-mode">
+            <button id="mode-message" type="button" class="mode-key">✎ сообщение</button>
+            <button id="mode-keys" type="button" class="mode-key">⌨ клавиши</button>
+          </div>
           <textarea
             id="composer-input"
             rows="1"
-            placeholder="Write to this session — Enter sends, Shift+Enter is a newline"
+            placeholder="Написать в эту сессию — Enter отправляет, Shift+Enter переносит строку"
           ></textarea>
-          <button id="composer-send" type="submit">send</button>
+          <div id="keys-strip" hidden></div>
+          <div id="quick-keys">
+            <button id="key-esc" type="button" class="chip danger" title="послать Escape">Esc</button>
+            <button id="key-ctrlc" type="button" class="chip danger" title="послать Ctrl+C">^C</button>
+          </div>
+          <button id="composer-send" type="submit">⏎</button>
         </form>
         <div id="composer-note"></div>
       </section>
     </main>
-
-    <aside id="rail">
-      <div class="rail-title">Session</div>
-      <dl id="sess-info"></dl>
-      <div class="rail-title">Actions</div>
-      <div id="sess-actions"></div>
-    </aside>
 
     <script src="/static/vendor/marked.min.js"></script>
     <script src="/static/vendor/highlight.min.js"></script>

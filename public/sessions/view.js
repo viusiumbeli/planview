@@ -4,6 +4,7 @@ import { createApprove } from './approve.js'
 import { createComposer } from './input.js'
 import { createScreen } from './screen.js'
 import { createScrollback } from './scrollback.js'
+import { dotClass } from './status-dot.js'
 import { createSessionTree } from './tree.js'
 
 /**
@@ -16,11 +17,12 @@ export async function initSessions({ awaiting }) {
   const el = (id) => document.getElementById(id)
   const sessTree = el('sess-tree')
   const offline = el('agterm-offline')
+  const dot = el('sess-dot')
   const title = el('sess-title')
   const meta = el('sess-meta')
-  const info = el('sess-info')
   const approveStrip = el('approve-strip')
-  const actions = el('sess-actions')
+  const menuButton = el('sess-menu-button')
+  const menu = el('sess-menu')
 
   let snapshot = { windows: [], activeSessionId: null, pendingBySession: {} }
   let viewSid = null
@@ -47,15 +49,13 @@ export async function initSessions({ awaiting }) {
     past: el('past'),
     topSentinel: el('past-top'),
     pill: el('live-pill'),
-    mapNote: el('map-note'),
+    note: el('feed-note'),
   })
 
   const screen = createScreen({
     frame: el('frame'),
-    ageEl: el('frame-age'),
+    statusEl: el('frame-status'),
     paneChips: el('pane-chips'),
-    rawToggle: el('raw-toggle'),
-    rawBanner: el('raw-banner'),
     quickKeys: [
       [el('key-esc'), 'escape'],
       [el('key-ctrlc'), 'ctrl-c'],
@@ -66,14 +66,19 @@ export async function initSessions({ awaiting }) {
       const node = nodeOf(viewSid)
       return Boolean(node && (node.status === 'active' || node.statusBlink))
     },
+    // The frame captures the keys, so it is the source of truth about the mode; the input row draws it.
+    onModeChange: (on, sessionName) => composer.setKeysMode(on, sessionName),
   })
 
-  createComposer({
+  const composer = createComposer({
     form: el('composer'),
     textarea: el('composer-input'),
     sendButton: el('composer-send'),
     note: el('composer-note'),
+    modeButtons: { message: el('mode-message'), keys: el('mode-keys') },
+    keysStrip: el('keys-strip'),
     getSid: () => viewSid,
+    onKeysMode: (on) => screen.setRaw(on),
   })
 
   const approveChip = createApprove({
@@ -142,117 +147,123 @@ export async function initSessions({ awaiting }) {
   function renderCurrent() {
     const node = nodeOf(viewSid)
     if (!node) {
+      dot.className = 'dot'
       title.textContent = viewSid ? 'session not in the tree' : 'no session'
+      title.removeAttribute('title')
       meta.replaceChildren()
-      info.replaceChildren()
-      actions.replaceChildren()
+      menuButton.hidden = true
+      closeMenu()
       approveStrip.hidden = true
       return
     }
 
+    dot.className = dotClass(node)
+    dot.title = `${node.status ?? 'idle'}${node.statusBlink ? ' · blink' : ''}`
     title.textContent = node.name || node.id.slice(0, 8)
-    title.title = node.title ?? ''
-    meta.replaceChildren()
-    const cwd = document.createElement('span')
-    cwd.className = 'cwd'
-    cwd.textContent = node.cwd ?? ''
-    const fg = document.createElement('span')
-    fg.textContent = (node.foreground ?? []).join(' ')
-    meta.append(cwd, fg)
+    // Everything that used to fill a whole column now lives in one tooltip.
+    title.title = [node.title, node.cwd, node.id].filter(Boolean).join('\n')
+    menuButton.hidden = false
 
-    renderInfo(node)
-    renderActions(node)
+    const parts = [['cwd', node.cwd ?? ''], ['fg', (node.foreground ?? []).join(' ') || 'shell']]
+    meta.replaceChildren(
+      ...parts.map(([kind, text]) => {
+        const span = document.createElement('span')
+        span.className = kind === 'cwd' ? 'cwd' : ''
+        span.textContent = text
+        return span
+      }),
+      ...(node.flagged ? [Object.assign(document.createElement('span'), { className: 'flagmark', textContent: '⚑' })] : []),
+      ...(node.unseen ? [Object.assign(document.createElement('span'), { className: 'unseen', textContent: String(node.unseen) })] : []),
+    )
+
+    if (!menu.hidden) renderMenu(node)
     renderApprove()
   }
 
-  function renderInfo(node) {
-    info.replaceChildren()
-    const rows = [
-      ['status', `${node.status ?? 'idle'}${node.statusBlink ? ' · blink' : ''}`],
-      ['cwd', node.cwd ?? '—', 'mono'],
-      ['running', (node.foreground ?? []).join(' ') || 'shell', 'mono'],
-      ...(node.unseen ? [['unseen', String(node.unseen)]] : []),
-      ...(node.flagged ? [['flagged', 'yes']] : []),
-      ['id', node.id.slice(0, 8), 'mono'],
-    ]
-    for (const [term, value, cls] of rows) {
-      const dt = document.createElement('dt')
-      dt.textContent = term
-      const dd = document.createElement('dd')
-      if (cls) dd.className = cls
-      dd.textContent = value
-      info.append(dt, dd)
-    }
-  }
+  /* ---------- actions menu ---------- */
 
-  function renderActions(node) {
-    actions.replaceChildren()
+  // Rare actions do not deserve permanent screen space, so they live behind ⋯ in the header.
+  function renderMenu(node) {
+    menu.replaceChildren()
 
-    const chip = (label, onClick) => {
+    const item = (label, onClick) => {
       const button = document.createElement('button')
       button.type = 'button'
-      button.className = 'chip'
+      button.className = 'menu-item'
       button.textContent = label
       button.addEventListener('click', onClick)
-      actions.append(button)
+      menu.append(button)
       return button
     }
 
-    chip('rename', () => {
+    const run = async (action) => {
+      try {
+        await action()
+        closeMenu()
+      } catch (err) {
+        composerNote(err.message)
+        closeMenu()
+      }
+    }
+
+    item('переименовать', () => {
       const input = document.createElement('input')
       input.className = 'rename-input'
       input.value = node.name ?? ''
-      input.addEventListener('keydown', async (event) => {
-        if (event.key === 'Escape') return renderActions(node)
-        if (event.key !== 'Enter') return
-        try {
-          await api.rename(node.id, input.value.trim())
-        } catch (err) {
-          composerNote(err.message)
-        }
-        renderActions(node)
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') return renderMenu(node)
+        if (event.key === 'Enter') run(() => api.rename(node.id, input.value.trim()))
       })
-      actions.replaceChildren(input)
+      menu.replaceChildren(input)
       input.focus()
       input.select()
     })
 
-    chip(node.flagged ? 'unflag' : 'flag ⚑', async () => {
-      try {
-        await api.flag(node.id, 'toggle')
-      } catch (err) {
-        composerNote(err.message)
-      }
-    })
-
-    if (node.unseen) {
-      chip('mark seen', async () => {
-        try {
-          await api.seen(node.id)
-        } catch (err) {
-          composerNote(err.message)
-        }
-      })
-    }
+    item(node.flagged ? 'снять флаг' : 'пометить флагом ⚑', () => run(() => api.flag(node.id, 'toggle')))
+    if (node.unseen) item('сбросить бейдж', () => run(() => api.seen(node.id)))
 
     // Two-step close: the first click arms, the second within 3s fires. No native dialogs.
-    const close = chip('close session', async () => {
+    const close = item('закрыть сессию', () => {
       if (!close.classList.contains('armed')) {
         close.classList.add('armed')
-        close.textContent = 'really close?'
+        close.textContent = 'точно закрыть?'
         setTimeout(() => {
+          if (!close.isConnected) return
           close.classList.remove('armed')
-          close.textContent = 'close session'
+          close.textContent = 'закрыть сессию'
         }, 3000)
         return
       }
-      try {
-        await api.close(node.id)
-      } catch (err) {
-        composerNote(err.message)
-      }
+      run(() => api.close(node.id))
     })
   }
+
+  function closeMenu() {
+    menu.hidden = true
+    menuButton.classList.remove('selected')
+  }
+
+  menuButton.addEventListener('click', (event) => {
+    event.stopPropagation()
+    if (!menu.hidden) return closeMenu()
+    const node = nodeOf(viewSid)
+    if (!node) return
+    renderMenu(node)
+    menu.hidden = false
+    menuButton.classList.add('selected')
+  })
+
+  document.addEventListener('click', (event) => {
+    if (!menu.hidden && !menu.contains(event.target)) closeMenu()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !menu.hidden) {
+      // Escape only reaches here while the menu is open; in keys mode the frame has focus and
+      // Escape belongs to the terminal.
+      event.stopPropagation()
+      closeMenu()
+    }
+  })
 
   function renderApprove() {
     const planId = snapshot.pendingBySession?.[viewSid]
@@ -295,7 +306,8 @@ export async function initSessions({ awaiting }) {
         }
         if (msg.sessionId === viewSid) {
           if (msg.name) title.textContent = msg.name
-          renderInfo(nodeOf(viewSid) ?? {})
+          dot.className = dotClass({ status: msg.status, statusBlink: msg.blink })
+          dot.title = `${msg.status ?? 'idle'}${msg.blink ? ' · blink' : ''}`
           // active↔idle flips how much of the live frame shows, even without a new frame.
           screen.rerender()
         }

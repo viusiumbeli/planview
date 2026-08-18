@@ -181,11 +181,15 @@
 
 #sess-header {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.7rem;
   flex: none;
-  padding: 0.85rem 2rem 0.6rem;
+  padding: 0.6rem 1.5rem;
   border-bottom: 1px solid var(--border);
+}
+
+#sess-dot {
+  align-self: center;
 }
 
 #sess-titles {
@@ -205,10 +209,71 @@
 
 #sess-meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.5rem;
+  min-width: 0;
   font-size: 0.75rem;
   color: var(--fg-muted);
+}
+
+/* The actions menu: rare things, one click away, no permanent space. */
+
+#menu-wrap {
+  position: relative;
+  flex: none;
+}
+
+#sess-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
+#sess-menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.menu-item.armed {
+  background: var(--waiting);
+  color: #fff;
+  font-weight: 600;
+}
+
+.rename-input {
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
 }
 
 #sess-meta .cwd {
@@ -228,18 +293,6 @@
 }
 
 /* ---------- live frame ---------- */
-
-#screen-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex: none;
-  padding: 0.45rem 2rem;
-}
-
-.bar-space {
-  flex: 1;
-}
 
 #pane-chips {
   display: flex;
@@ -288,29 +341,6 @@
   font-weight: 700;
 }
 
-#frame-age {
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--fg-muted);
-}
-
-#frame-age.stale {
-  color: var(--waiting);
-  font-weight: 600;
-}
-
-#raw-banner {
-  flex: none;
-  margin: 0 1.5rem 0.4rem;
-  padding: 0.3rem 0.8rem;
-  border: 1px solid var(--waiting);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--waiting) 10%, transparent);
-  color: var(--waiting);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
 /* The unified feed: transcript log above, live frame below, ONE scroll container. */
 
 #term-scroll {
@@ -321,6 +351,28 @@
   font-family: var(--mono);
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+/* Whose past this is — a note in the log, not a chip that looks like a button. */
+#feed-note {
+  margin: 0.7rem 1.5rem 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+#feed-note::before,
+#feed-note::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--border);
+}
+
+#feed-note[hidden] {
+  display: none;
 }
 
 #past {
@@ -461,6 +513,24 @@
   font-style: italic;
 }
 
+/* Silent while the mirror keeps up; loud the moment it falls behind. */
+#frame-status {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 1rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--waiting);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--waiting) 12%, var(--bg));
+  color: var(--waiting);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#frame-status[hidden] {
+  display: none;
+}
+
 #live-pill {
   position: absolute;
   right: 3rem;
@@ -477,11 +547,6 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
 }
 
-#map-note {
-  font-size: 0.72rem;
-  color: var(--waiting);
-}
-
 /* ---------- composer ---------- */
 
 #composer {
@@ -489,7 +554,75 @@
   gap: 0.5rem;
   align-items: flex-end;
   flex: none;
-  padding: 0 2rem 0.35rem;
+  padding: 0.5rem 1.5rem 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+#composer.keys-mode {
+  border-top-color: var(--waiting);
+  background: color-mix(in srgb, var(--waiting) 6%, transparent);
+}
+
+/* One question — what happens when I press a key — with one visible answer. */
+#input-mode {
+  display: flex;
+  flex: none;
+  align-self: stretch;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.mode-key {
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mode-key.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+#input-mode:has(#mode-keys.selected) {
+  border-color: var(--waiting);
+}
+
+#mode-keys.selected {
+  background: var(--waiting);
+  color: #fff;
+}
+
+#keys-strip {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.8rem;
+  border: 1px dashed var(--waiting);
+  border-radius: 10px;
+  color: var(--waiting);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: text;
+  user-select: none;
+}
+
+#keys-strip[hidden] {
+  display: none;
+}
+
+#quick-keys {
+  display: flex;
+  gap: 0.3rem;
+  flex: none;
+  align-self: center;
 }
 
 #composer-input {
@@ -511,9 +644,13 @@
   border-color: var(--accent);
 }
 
+#composer-send[hidden] {
+  display: none;
+}
+
 #composer-send {
   flex: none;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.9rem;
   border: 1px solid var(--accent);
   border-radius: 10px;
   background: var(--accent);
@@ -532,61 +669,11 @@
 #composer-note {
   flex: none;
   min-height: 1.2rem;
-  padding: 0 2rem 0.6rem;
+  padding: 0 1.5rem 0.6rem;
   font-size: 0.75rem;
   color: var(--fg-muted);
 }
 
 #composer-note.error {
   color: var(--waiting);
-}
-
-/* ---------- rail ---------- */
-
-#sess-info {
-  margin: 0 1.25rem 0.8rem;
-  font-size: 0.8rem;
-}
-
-#sess-info dt {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-muted);
-  margin-top: 0.5rem;
-}
-
-#sess-info dd {
-  margin: 0.05rem 0 0;
-  overflow-wrap: anywhere;
-}
-
-#sess-info dd.mono {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-}
-
-#sess-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0 1.25rem 1rem;
-}
-
-#sess-actions .chip.armed {
-  background: var(--waiting);
-  border-color: var(--waiting);
-  color: #fff;
-}
-
-#sess-actions .rename-input {
-  width: 100%;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  font-size: 0.8rem;
 }

@@ -13,7 +13,6 @@
   --waiting: #bc4c00;
   --ok: #1a7f37;
   --sidebar-width: 19rem;
-  --rail-width: 17rem;
   /* ~85 characters at the 16px base — wide enough to use the window, short enough to read. */
   --measure: 48rem;
 }
@@ -43,7 +42,7 @@
 body {
   margin: 0;
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   height: 100dvh;
   background: var(--bg);
   color: var(--fg);
@@ -438,57 +437,7 @@ body {
   margin-top: 0.6rem;
 }
 
-/* ---------- outline rail ---------- */
-
-#rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1rem 0 3rem;
-  border-left: 1px solid var(--border);
-  background: var(--bg);
-}
-
-#rail[hidden] {
-  display: none;
-}
-
-.rail-title {
-  padding: 0 1.25rem 0.6rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--fg-muted);
-}
-
-/* Plan headings can be a whole filename long; two lines keeps the rail scannable. */
-#outline a {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  padding: 0.25rem 1.25rem;
-  border-left: 2px solid transparent;
-  color: var(--fg-muted);
-  font-size: 0.85rem;
-  line-height: 1.4;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
 /* ---------- narrower windows ---------- */
-
-@media (max-width: 1200px) {
-  :root {
-    --rail-width: 0;
-  }
-
-  #rail {
-    display: none;
-  }
-}
 
 @media (max-width: 760px) {
   body {

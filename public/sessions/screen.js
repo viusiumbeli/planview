@@ -12,12 +12,11 @@ const timeOf = (ms) =>
  */
 export function createScreen({
   frame,
-  ageEl,
+  statusEl,
   paneChips,
-  rawToggle,
-  rawBanner,
   quickKeys,
   noteError,
+  onModeChange = () => {},
   withPin = (fn) => fn(),
   getBusy = () => false,
 }) {
@@ -84,7 +83,7 @@ export function createScreen({
       lastAt = data.at
       lastFullText = data.text
       render()
-      tickAge()
+      tickStatus()
     })
   }
 
@@ -95,16 +94,24 @@ export function createScreen({
 
   const connState = () => (events ? (events.readyState === EventSource.OPEN ? 'live' : 'connecting') : 'off')
 
-  function tickAge() {
+  // Nothing to say while the mirror keeps up: a clock reading "all fine" is noise. It speaks only
+  // when the frame has gone stale or the stream is reconnecting.
+  function tickStatus() {
     if (!sid || !events) {
-      ageEl.textContent = ''
+      statusEl.hidden = true
       return
     }
-    const state = connState()
-    ageEl.classList.toggle('stale', state !== 'live')
-    ageEl.textContent = state === 'live' ? (lastAt ? `live · ${timeOf(lastAt)}` : 'live') : 'reconnecting…'
+    if (connState() !== 'live') {
+      statusEl.hidden = false
+      statusEl.textContent = 'переподключение…'
+      return
+    }
+    const age = lastAt ? Date.now() - lastAt : 0
+    const stale = lastAt && age > 4000
+    statusEl.hidden = !stale
+    if (stale) statusEl.textContent = `кадр ${Math.round(age / 1000)}s назад · ${timeOf(lastAt)}`
   }
-  setInterval(tickAge, 1000)
+  setInterval(tickStatus, 1000)
 
   /* ---------- panes ---------- */
 
@@ -164,20 +171,18 @@ export function createScreen({
     raw = on
     frame.tabIndex = on ? 0 : -1
     frame.classList.toggle('raw-on', on)
-    rawToggle.classList.toggle('raw-on', on)
-    rawBanner.hidden = !on
     if (on) {
-      rawBanner.textContent = `keys go straight to ${sessionName || 'this session'} — click outside or toggle to stop`
       frame.focus()
       armIdleDrop()
     } else {
       clearTimeout(rawIdleTimer)
     }
+    // The input row owns the "what happens when I type" question, so it renders the answer.
+    onModeChange(on, sessionName)
     // Raw mode uncrops the frame (and leaving it re-crops).
     render()
   }
 
-  rawToggle.addEventListener('click', () => setRaw(!raw))
   frame.addEventListener('blur', () => setRaw(false))
   frame.addEventListener('keydown', (event) => {
     if (!raw) return
@@ -192,6 +197,8 @@ export function createScreen({
   })
 
   for (const [button, key] of quickKeys) {
+    // Keeping focus on the frame is what lets Esc/^C work DURING keys mode instead of ending it.
+    button.addEventListener('mousedown', (event) => event.preventDefault())
     button.addEventListener('click', () => {
       if (!sid) return
       api.type(sid, { key }).catch((err) => noteError?.(err.message))
@@ -215,13 +222,13 @@ export function createScreen({
         setRaw(false)
       }
       if (changed || !events) openStream()
-      tickAge()
+      tickStatus()
     },
 
     hide() {
       closeStream()
       setRaw(false)
-      tickAge()
+      tickStatus()
     },
 
     reopen() {
@@ -231,6 +238,7 @@ export function createScreen({
     /** Re-crop from the held frame — the busy hint flipped without a new frame arriving. */
     rerender: render,
 
+    setRaw,
     rawActive: () => raw,
   }
 }

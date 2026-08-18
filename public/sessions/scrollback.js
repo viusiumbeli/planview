@@ -2,10 +2,12 @@ import { api } from '../lib/api.js'
 import { renderMarkdown } from '../lib/markdown.js'
 import { entryRows } from './termlog.js'
 
-const CONFIDENCE_LABEL = {
-  restore: 'history: по restore-команде',
-  ps: 'history: по живому процессу',
-  guessed: 'history: догадка по каталогу',
+// Said in full sentences, in the feed, where the uncertain past begins — not as a chip that
+// looks like a button. An exact match (the SessionStart hook registered it) says nothing at all.
+const CONFIDENCE_NOTE = {
+  restore: 'история сопоставлена по restore-команде сессии',
+  ps: 'история сопоставлена по живому процессу claude — возможно, это диалог другой сессии в этом каталоге',
+  guessed: 'история — самый свежий транскрипт этого каталога, точное совпадение не подтверждено',
 }
 
 /**
@@ -14,7 +16,7 @@ const CONFIDENCE_LABEL = {
  * older pages lazy-load as the top scrolls into view, live entries stream in — appended silently
  * when the reader is pinned to the bottom, offered as a "↓ live" pill when not.
  */
-export function createScrollback({ container, past, topSentinel, pill, mapNote }) {
+export function createScrollback({ container, past, topSentinel, pill, note }) {
   let sid = null
   let events = null
   let nextBefore = null
@@ -121,18 +123,16 @@ export function createScrollback({ container, past, topSentinel, pill, mapNote }
       page = await api.history(sid, { limit: 100 })
     } catch (err) {
       // No transcript mapped (or unreadable) — the live frame still works; the past is just empty.
-      mapNote.hidden = false
-      mapNote.textContent = 'history: недоступна'
-      mapNote.title = err.message
+      note.hidden = false
+      note.textContent = `история недоступна: ${err.message}`
       return false
     }
     nextBefore = page.nextBefore
     hasMore = page.hasMore
 
     const confidence = page.source?.confidence
-    mapNote.hidden = !CONFIDENCE_LABEL[confidence]
-    mapNote.textContent = CONFIDENCE_LABEL[confidence] ?? ''
-    mapNote.title = 'сопоставление сессия↔транскрипт не подтверждено хуком — возможна чужая история'
+    note.hidden = !CONFIDENCE_NOTE[confidence]
+    note.textContent = CONFIDENCE_NOTE[confidence] ?? ''
 
     for (const entry of page.entries) past.append(entryElement(entry))
     observer.observe(topSentinel)
@@ -196,7 +196,7 @@ export function createScrollback({ container, past, topSentinel, pill, mapNote }
       observer.disconnect()
       for (const el of [...past.children]) if (el !== topSentinel) el.remove()
       pill.hidden = true
-      mapNote.hidden = true
+      note.hidden = true
       nextBefore = null
       hasMore = false
 

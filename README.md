@@ -60,17 +60,23 @@ reads, never a full parse), new entries stream in live — appended silently whe
 the bottom, offered as a `↓ live` pill when you are reading above. agterm knows nothing about
 transcripts, so the mapping is assembled — a `SessionStart` hook registers the exact pairing;
 before the hook existed, a live `claude` process's environment (`ps eww` → `AGTERM_SESSION_ID`) or
-the newest transcript for the session's directory fills in, and a chip in the toolbar says plainly
-when it is guessing. Chips switch between main/split/scratch panes when they exist.
+the newest transcript for the session's directory fills in — and when it is a guess, the feed says
+so in a sentence where the past begins, instead of leaving you to trust it.
 
-Input goes two ways. The **composer** sends a prompt: Enter sends, Shift+Enter breaks a line, and
-each newline is typed as backslash+Return — Claude Code's line continuation — so a multi-line brief
-lands in the input box as one unsubmitted message (verified against a live session; the worst
-possible failure is a visible stray backslash, never a hidden submit). **Raw-key mode** (the `⌨`
-toggle) forwards keystrokes — arrows, Tab, Escape, Ctrl+C — straight to the terminal, with a loud
-border while it is on; it drops itself on blur and after 60 s of silence. `Esc` and `Ctrl+C` also
-sit as one-click buttons. The browser only ever sends *named* key tokens; the escape bytes live in
-one server-side table, and control characters are stripped out of plain text.
+The input row owns one question — what happens when you press a key — and answers it in place with
+a two-way switch. **✎ message** is a textarea: Enter sends, Shift+Enter breaks a line, and each
+newline is typed as backslash+Return, Claude Code's line continuation, so a multi-line brief lands
+in the input box as one unsubmitted message (verified against a live session; the worst possible
+failure is a visible stray backslash, never a hidden submit). **⌨ keys** hands every keystroke
+straight to the terminal — arrows, Tab, Escape — with the frame outlined in amber while it is on;
+it drops itself when you click away or after 60 s of silence. `Esc` and `^C` sit beside the switch
+as one-click buttons that work in either mode. The browser only ever sends *named* key tokens; the
+escape bytes live in one server-side table, and control characters are stripped out of plain text.
+
+Everything else stays out of the way: the session's status dot, name, directory and running command
+are one header line, the rare actions (rename, flag, clear badge, close) live behind `⋯` there, the
+pane switcher appears only when a session has a split or scratch, and the mirror's freshness only
+speaks up when it falls behind. Two columns, no third panel — the terminal gets the width.
 
 When a session is blocked on a plan approval, the prompt's own options appear as buttons between
 the feed and the live frame — which is exactly under the plan, since the plan is the last thing

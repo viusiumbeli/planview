@@ -1,4 +1,5 @@
 import { store } from '../lib/store.js'
+import { dotClass } from './status-dot.js'
 
 /**
  * The sidebar session tree: windows → workspaces → sessions, with the live status dot, unseen
@@ -8,11 +9,6 @@ import { store } from '../lib/store.js'
 export function createSessionTree({ container, onPick, onNew }) {
   const collapsed = store('planview.ws-collapsed')
   let extras = { activeSessionId: null, pendingBySession: {} }
-
-  const dotClass = (session) => {
-    const status = session.status ?? 'idle'
-    return `dot ${status}${session.statusBlink ? ' blink' : ''}`
-  }
 
   function sessionButton(session) {
     const button = document.createElement('button')
@@ -96,7 +92,7 @@ export function createSessionTree({ container, onPick, onNew }) {
     patchStatus({ sessionId, status, blink, name }) {
       const button = container.querySelector(`[data-sid="${sessionId}"]`)
       if (!button) return
-      button.querySelector('.dot').className = `dot ${status ?? 'idle'}${blink ? ' blink' : ''}`
+      button.querySelector('.dot').className = dotClass({ status, statusBlink: blink })
       if (name) button.querySelector('.name').textContent = name
     },
 
