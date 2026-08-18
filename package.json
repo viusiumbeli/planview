@@ -6,6 +6,6 @@
   "description": "Web viewer for Claude Code plan-mode markdown",
   "bin": { "planview": "./bin/planview" },
   "scripts": {
-    "test": "node --test --test-force-exit"
+    "test": "node --test"
   }
 }

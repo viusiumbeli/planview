@@ -9,6 +9,8 @@ import { createWatcher } from './watcher.js'
 import { createPending } from './pending.js'
 import { createAgterm } from './agterm.js'
 import { keysFor, parsePrompt } from './prompt.js'
+import { fail, readJson, sameOrigin, send } from './http.js'
+import { termRoute, wireTermEvents } from './routes/term.js'
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public')
 
@@ -16,13 +18,23 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2',
 }
+
+// The daemon serves live terminal screens and full transcripts now, so a DNS-rebinding page that
+// resolves its own name to 127.0.0.1 must not be able to read them. Legitimate requests only ever
+// arrive under these hosts.
+const HOST_OK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i
 
 export function createServer({
   plansDir = PLANS_DIR,
   watch = true,
   agterm = createAgterm(),
   pending = createPending(),
+  term = null,
   now = Date.now,
 } = {}) {
   const clients = new Set()
@@ -30,9 +42,20 @@ export function createServer({
     for (const client of clients) client.write('data: {"type":"changed"}\n\n')
   }
 
+  const termClients = new Set()
+  if (term) {
+    wireTermEvents(term, termClients)
+    term.start()
+  }
+
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     try {
+      if (!HOST_OK.test(req.headers.host ?? '')) return fail(res, 403, 'unrecognized host')
+      if (url.pathname.startsWith('/api/term/')) {
+        if (!term) return fail(res, 503, 'terminal control not enabled')
+        return await termRoute(url, req, res, { term, pending, now, termClients })
+      }
       await route(url, req, res, { plansDir, clients, agterm, pending, now, notify })
     } catch (err) {
       send(res, 500, 'text/plain; charset=utf-8', String(err))
@@ -48,11 +71,14 @@ export function createServer({
   // A pinned tab holds its SSE stream open forever, and http.close() waits for open connections.
   // Shutting down has to hang up on the clients first or `planview stop` never returns.
   server.shutdown = () =>
-    new Promise((resolve) => {
+    new Promise((resolvePromise) => {
       server.stopWatching?.()
+      term?.stop()
       for (const client of clients) client.end()
       clients.clear()
-      server.close(resolve)
+      for (const client of termClients) client.end()
+      termClients.clear()
+      server.close(resolvePromise)
     })
 
   return server
@@ -148,8 +174,7 @@ async function postApprove(req, res, { agterm, pending, now, notify }) {
 
   // A page that can read /api/plans has the token; this blocks a blind cross-site POST from a page
   // that cannot. Browsers that omit the header (older ones) still need the token.
-  const site = req.headers['sec-fetch-site']
-  if (site && site !== 'same-origin') return fail(res, 403, 'cross-site request refused')
+  if (!sameOrigin(req)) return fail(res, 403, 'cross-site request refused')
 
   const body = await readJson(req)
   if (!body) return fail(res, 400, 'bad json')
@@ -193,27 +218,6 @@ function log(line, screen) {
   appendFile(path, `${new Date().toISOString()} ${line}${body}\n`).catch(() => {})
 }
 
-const MAX_BODY = 64 * 1024
-
-function readJson(req) {
-  return new Promise((resolve) => {
-    let body = ''
-    req.on('data', (chunk) => {
-      body += chunk
-      if (body.length > MAX_BODY) req.destroy()
-    })
-    req.on('end', () => {
-      try {
-        const parsed = JSON.parse(body)
-        resolve(parsed && typeof parsed === 'object' ? parsed : null)
-      } catch {
-        resolve(null)
-      }
-    })
-    req.on('error', () => resolve(null))
-  })
-}
-
 async function sendFile(res, path) {
   const type = TYPES[path.slice(path.lastIndexOf('.'))] ?? 'application/octet-stream'
   try {
@@ -225,15 +229,4 @@ async function sendFile(res, path) {
   } catch {
     send(res, 404, 'text/plain', 'not found')
   }
-}
-
-function send(res, status, type, body, headers = {}) {
-  res.writeHead(status, { 'content-type': type, ...headers })
-  res.end(body)
-}
-
-// Rejections the browser has to explain to the user. Sending these as text/plain made the client's
-// res.json() throw, so the reason was discarded and the UI could only show "failed (400)".
-function fail(res, status, error) {
-  return send(res, status, 'application/json; charset=utf-8', JSON.stringify({ error }))
 }

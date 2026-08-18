@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 import { createServer } from '../src/server.js'
+import { createTerm } from '../src/term.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const STATE = join(process.env.HOME, '.local', 'state', 'planview')
@@ -30,7 +31,7 @@ await run()
 /* ---------- commands ---------- */
 
 async function serve() {
-  const server = createServer()
+  const server = createServer({ term: createTerm() })
 
   server.on('error', (err) => {
     const reason = err.code === 'EADDRINUSE' ? `port ${PORT} is already in use` : err.message
@@ -78,6 +79,15 @@ async function status() {
 
   const reachable = await fetch(`${URL}/api/plans`).then((r) => r.ok).catch(() => false)
   console.log(`planview: running (pid ${pid}), ${URL} ${reachable ? 'responding' : 'NOT responding'}`)
+
+  const term = await fetch(`${URL}/api/term/state`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  if (term) {
+    const link = term.up ? `agterm connected (ring ${term.run ?? '—'} @ ${term.next ?? '—'})` : `agterm NOT reachable${term.lastError ? ` — ${term.lastError}` : ''}`
+    console.log(`  terminal mirror: ${link}`)
+  } else {
+    console.log('  terminal mirror: not enabled on this build')
+  }
+
   if (!reachable) process.exit(1)
 }
 

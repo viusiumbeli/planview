@@ -1,0 +1,8 @@
+{"type":"mode","mode":"plan","sessionId":"s"}
+{"type":"user","uuid":"u1","timestamp":"2026-08-18T10:00:00.000Z","cwd":"/tmp/proj","isSidechain":false,"message":{"role":"user","content":"сделай мне хорошо"}}
+{"type":"assistant","uuid":"a1","timestamp":"2026-08-18T10:00:05.000Z","isSidechain":false,"message":{"role":"assistant","content":[{"type":"text","text":"Sure. **Bold** plan."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls -la","description":"List files"}}]}}
+{"type":"user","uuid":"u2","timestamp":"2026-08-18T10:00:07.000Z","isSidechain":false,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","is_error":false,"content":"file1\nfile2"}]}}
+{"type":"ai-title","aiTitle":"Nice title","sessionId":"s"}
+{"type":"assistant","uuid":"a2","timestamp":"2026-08-18T10:00:12.000Z","isSidechain":false,"message":{"role":"assistant","content":[{"type":"thinking","thinking":"hmm secret thoughts","signature":"xyz"},{"type":"text","text":"Done."}]}}
+{"type":"user","uuid":"side1","timestamp":"2026-08-18T10:00:14.000Z","isSidechain":true,"message":{"role":"user","content":"subagent prompt"}}
+{"type":"user","uuid":"u3","timestamp":"2026-08-18T10:00:20.000Z","isSidechain":false,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t9","is_error":true,"content":[{"type":"text","text":"boom"}]}]}}
