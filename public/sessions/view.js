@@ -68,6 +68,11 @@ export async function initSessions({ awaiting }) {
     },
     // The frame captures the keys, so it is the source of truth about the mode; the input row draws it.
     onModeChange: (on, sessionName) => composer.setKeysMode(on, sessionName),
+    onScrollFeed: (gesture) => {
+      if (gesture === 'page-up') scrollback.scrollPages(-1)
+      else if (gesture === 'page-down') scrollback.scrollPages(1)
+      else scrollback.scrollEdge(gesture)
+    },
   })
 
   const composer = createComposer({

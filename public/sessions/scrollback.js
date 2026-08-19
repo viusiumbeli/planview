@@ -211,6 +211,18 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
       events = null
     },
 
+    /** Keyboard scrolling, for when every other key belongs to the terminal. */
+    scrollPages(pages) {
+      // A page minus a couple of lines, so the eye keeps an anchor across the jump.
+      container.scrollTop += pages * (container.clientHeight - 40)
+      if (atBottom()) pill.hidden = true
+    },
+
+    scrollEdge(edge) {
+      if (edge === 'bottom') return scrollToBottom()
+      container.scrollTop = 0
+    },
+
     /** The live frame is about to change size: keep the bottom pinned iff the reader is there. */
     withPin(mutate) {
       const pinned = atBottom()

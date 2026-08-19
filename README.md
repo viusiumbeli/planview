@@ -69,7 +69,10 @@ newline is typed as backslash+Return, Claude Code's line continuation, so a mult
 in the input box as one unsubmitted message (verified against a live session; the worst possible
 failure is a visible stray backslash, never a hidden submit). **⌨ keys** hands every keystroke
 straight to the terminal — arrows, Tab, Escape — with the frame outlined in amber while it is on;
-it drops itself when you click away or after 60 s of silence. `Esc` and `^C` sit beside the switch
+it drops itself when you click away or after 60 s of silence. Reading the past keeps working while
+it is on: the wheel scrolls as always, and Shift+PgUp/PgDn (Shift+Home/End for the ends) scroll the
+feed instead of being forwarded — the xterm convention, so the TUI still gets its own unshifted
+PageUp and Home. `Esc` and `^C` sit beside the switch
 as one-click buttons that work in either mode. The browser only ever sends *named* key tokens; the
 escape bytes live in one server-side table, and control characters are stripped out of plain text.
 

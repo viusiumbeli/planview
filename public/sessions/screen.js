@@ -1,5 +1,5 @@
 import { api } from '../lib/api.js'
-import { keydownToToken } from '../lib/keys.js'
+import { keydownToToken, scrollGesture } from '../lib/keys.js'
 import { store } from '../lib/store.js'
 
 const timeOf = (ms) =>
@@ -17,6 +17,7 @@ export function createScreen({
   quickKeys,
   noteError,
   onModeChange = () => {},
+  onScrollFeed = () => {},
   withPin = (fn) => fn(),
   getBusy = () => false,
 }) {
@@ -172,7 +173,9 @@ export function createScreen({
     frame.tabIndex = on ? 0 : -1
     frame.classList.toggle('raw-on', on)
     if (on) {
-      frame.focus()
+      // Plain focus() scrolls the frame into view, which threw the reader to the bottom of the feed
+      // the moment they switched modes while reading a plan.
+      frame.focus({ preventScroll: true })
       armIdleDrop()
     } else {
       clearTimeout(rawIdleTimer)
@@ -186,6 +189,14 @@ export function createScreen({
   frame.addEventListener('blur', () => setRaw(false))
   frame.addEventListener('keydown', (event) => {
     if (!raw) return
+    // Reading the past has to stay possible while the keyboard belongs to the terminal.
+    const gesture = scrollGesture(event)
+    if (gesture) {
+      event.preventDefault()
+      armIdleDrop()
+      onScrollFeed(gesture)
+      return
+    }
     // Escape passes THROUGH to the terminal (it is Claude's interrupt); leaving raw mode is a
     // click or the toggle, never a key the TUI might need.
     const token = keydownToToken(event)

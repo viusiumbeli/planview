@@ -44,9 +44,10 @@ export function createComposer({
     sendButton.hidden = keysMode
     keysStrip.hidden = !keysMode
     if (keysMode) {
-      keysStrip.textContent = `клавиши идут прямо в ${sessionName || 'сессию'} — клик мимо выключает`
+      keysStrip.textContent =
+        `клавиши идут прямо в ${sessionName || 'сессию'} · Shift+PgUp/PgDn — прокрутка · клик мимо выключает`
     } else {
-      textarea.focus()
+      textarea.focus({ preventScroll: true })
     }
   }
 

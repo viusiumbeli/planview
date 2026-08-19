@@ -19,6 +19,16 @@ const NAMED = {
   PageDown: 'pagedown',
 }
 
+// Scrolling the feed while every other key belongs to the terminal. Shift + PageUp/PageDown/Home/
+// End is the xterm convention — the shifted keys always belonged to the scrollback rather than to
+// the program — so a TUI still gets its own arrows, PageUp, Home, Esc and Tab untouched.
+const SCROLL = { PageUp: 'page-up', PageDown: 'page-down', Home: 'top', End: 'bottom' }
+
+export function scrollGesture({ key, shiftKey, ctrlKey, metaKey, altKey }) {
+  if (!shiftKey || ctrlKey || metaKey || altKey) return null
+  return SCROLL[key] ?? null
+}
+
 export function keydownToToken({ key, ctrlKey, metaKey, altKey, shiftKey }) {
   // Meta/alt chords belong to the browser and the OS, not the terminal.
   if (metaKey || altKey) return null
