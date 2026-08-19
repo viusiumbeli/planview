@@ -8,7 +8,7 @@ import { buildTree } from './store.js'
 import { createWatcher } from './watcher.js'
 import { createPending } from './pending.js'
 import { createAgterm } from './agterm.js'
-import { keysFor, parsePrompt } from './prompt.js'
+import { keysFor, parsePrompt, PLAN_PROMPT_TITLE } from './prompt.js'
 import { fail, readJson, sameOrigin, send } from './http.js'
 import { termRoute, wireTermEvents } from './routes/term.js'
 
@@ -28,6 +28,11 @@ const TYPES = {
 // resolves its own name to 127.0.0.1 must not be able to read them. Legitimate requests only ever
 // arrive under these hosts.
 const HOST_OK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i
+
+// The hook registers at PreToolUse, BEFORE the prompt is drawn, so an entry with nothing on screen
+// yet is normal for a moment. Past this, a screen without the prompt means it was answered in the
+// terminal and the entry is stale.
+const PROMPT_GRACE_MS = 20_000
 
 export function createServer({
   plansDir = PLANS_DIR,
@@ -90,7 +95,8 @@ async function route(url, req, res, { plansDir, clients, agterm, pending, now, n
   if (url.pathname === '/api/plans') {
     const at = now()
     const tree = buildTree(await scan(plansDir), at)
-    const awaiting = Object.fromEntries(await Promise.all(pending.ids(at).map((id) => offer(id, at))))
+    const offers = await Promise.all(pending.ids(at).map((id) => offer(id, at)))
+    const awaiting = Object.fromEntries(offers.filter(Boolean))
     return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ ...tree, awaiting }))
   }
 
@@ -101,6 +107,16 @@ async function route(url, req, res, { plansDir, clients, agterm, pending, now, n
     const entry = pending.get(id, at)
     const screen = await agterm.text(entry)
     const prompt = screen === null ? null : parsePrompt(screen)
+
+    // Answered in the terminal? Then there is nothing left to approve, and leaving the entry alive
+    // for its full TTL left the page showing buttons for a prompt that is long gone. A screen that
+    // reads fine and does not carry the prompt at all is the signal — an unparseable prompt that IS
+    // on screen stays, so a two-cursor screen can still be answered once it settles.
+    if (screen !== null && !PLAN_PROMPT_TITLE.test(screen) && at - entry.at > PROMPT_GRACE_MS) {
+      pending.clear(id)
+      return null
+    }
+
     // The token rides along so the page can approve; a cross-site script cannot read this response.
     return [id, { token: entry.token, options: prompt?.options ?? [], selected: prompt?.selected }]
   }

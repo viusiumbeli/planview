@@ -100,6 +100,51 @@ test('/api/plans offers no options when the prompt cannot be read, so no buttons
   )
 })
 
+test('a prompt answered in the terminal stops being offered once the grace has passed', async () => {
+  // Without this the page kept showing buttons for a prompt that was long gone — the entry lived
+  // out its full 30-minute TTL.
+  const agterm = fakeAgterm({ screen: ANSWERED })
+  let clock = 1_000_000
+  const server = createServer({ plansDir: FIXTURES, watch: false, agterm, now: () => clock })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  try {
+    await register(base)
+
+    // Within the grace the entry survives: the hook fires before the prompt is drawn.
+    clock += 5_000
+    const early = await (await fetch(`${base}/api/plans`)).json()
+    assert.ok(early.awaiting[PLAN], 'still pending while the prompt may just be late')
+
+    clock += 30_000
+    const later = await (await fetch(`${base}/api/plans`)).json()
+    assert.deepEqual(later.awaiting, {}, 'dropped once the screen clearly has no prompt')
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('an unparseable prompt that IS on screen is kept, not dropped', async () => {
+  // Two cursors make parsing refuse — it cannot know where Enter would land — but the prompt is
+  // there, so the entry must survive until the screen settles.
+  const screen = READY.replace('     2. Yes, manually approve edits', '   ❯ 2. Yes, manually approve edits')
+  const agterm = fakeAgterm({ screen })
+  let clock = 1_000_000
+  const server = createServer({ plansDir: FIXTURES, watch: false, agterm, now: () => clock })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  try {
+    await register(base)
+    clock += 60_000
+    const tree = await (await fetch(`${base}/api/plans`)).json()
+
+    assert.ok(tree.awaiting[PLAN], 'kept')
+    assert.deepEqual(tree.awaiting[PLAN].options, [], 'but with no options to click')
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+  }
+})
+
 test('the hook is refused when its agterm target is not a uuid', async () => {
   await withServer(async ({ base }) => {
     const res = await post(base, '/api/pending', { planId: PLAN, agtermSessionId: 'active; rm -rf /' })
