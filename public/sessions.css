@@ -461,6 +461,10 @@
   line-height: 1.6;
 }
 
+.plan-card[hidden] {
+  display: none;
+}
+
 .plan-clipped {
   padding: 0 0.9rem 0.7rem;
   color: var(--waiting);
@@ -471,10 +475,37 @@
 
 #approve-strip {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 1.5rem 0.2rem;
+}
+
+/* The plan under review, at full height on purpose: cutting it down is the bug this fixes. */
+#approve-plan:not(:empty) {
+  border: 1px solid var(--waiting);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+#approve-plan .plan-label {
+  border-color: color-mix(in srgb, var(--waiting) 35%, var(--border-subtle));
+  background: color-mix(in srgb, var(--waiting) 10%, transparent);
+  color: var(--waiting);
+}
+
+#approve-plan .markdown {
+  padding: 0.9rem 0 1.4rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+#approve-bar {
+  display: flex;
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
-  margin: 0.5rem 1.5rem 0.2rem;
   padding: 0.45rem 0.8rem;
   border: 1px solid var(--waiting);
   border-radius: 10px;

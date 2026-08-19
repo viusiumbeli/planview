@@ -44,10 +44,14 @@
             <div id="feed-note" hidden></div>
             <div id="past"><div id="past-top"></div></div>
             <!-- The prompt sits where it happened: under everything the feed has, above the live
-                 frame — and when a session is waiting, the plan is the last thing the feed has. -->
+                 frame. The plan you are being asked about comes with it, in full — the terminal
+                 frame only ever shows the tail of it. -->
             <div id="approve-strip" hidden>
-              <span id="approve-note"></span>
-              <div id="approve-buttons"></div>
+              <div id="approve-plan"></div>
+              <div id="approve-bar">
+                <span id="approve-note"></span>
+                <div id="approve-buttons"></div>
+              </div>
             </div>
             <pre id="frame" tabindex="-1"></pre>
           </div>

@@ -1,5 +1,6 @@
 import { api } from '../lib/api.js'
 import { connectSse } from '../lib/bus.js'
+import { renderMarkdown } from '../lib/markdown.js'
 import { createApprove } from './approve.js'
 import { createComposer } from './input.js'
 import { createScreen } from './screen.js'
@@ -21,11 +22,13 @@ export async function initSessions({ awaiting }) {
   const title = el('sess-title')
   const meta = el('sess-meta')
   const approveStrip = el('approve-strip')
+  const approvePlan = el('approve-plan')
   const menuButton = el('sess-menu-button')
   const menu = el('sess-menu')
 
   let snapshot = { windows: [], activeSessionId: null, pendingBySession: {} }
   let viewSid = null
+  let shownPlanId = null
   let seenTimer = null
 
   /* ---------- components ---------- */
@@ -275,13 +278,40 @@ export async function initSessions({ awaiting }) {
     const entry = awaiting.get(planId)
     const wasHidden = approveStrip.hidden
     approveStrip.hidden = !entry
-    if (entry) {
-      approveChip.render({ id: planId }, entry)
-      // Appearing grows the feed; if the reader was at the bottom, keep them there.
-      if (wasHidden) scrollback.withPin(() => {})
-    } else {
+
+    if (!entry) {
       approveChip.clear()
+      approvePlan.replaceChildren()
+      shownPlanId = null
+      scrollback.setPendingPlan(null)
+      return
     }
+
+    approveChip.render({ id: planId }, entry)
+    scrollback.setPendingPlan(planId)
+    // Appearing grows the feed; if the reader was at the bottom, keep them there.
+    if (wasHidden) scrollback.withPin(() => {})
+    // The terminal frame only ever shows the tail of a plan, so the plan itself comes along in
+    // full — scrolling up from the buttons then walks the plan, not somebody's history. Guarded by
+    // id because /api/plans refreshes every 800ms while the options are still being read.
+    if (planId === shownPlanId) return
+    shownPlanId = planId
+    fetch(`/api/plan?id=${encodeURIComponent(planId)}`)
+      .then((res) => (res.ok ? res.text() : null))
+      .then((text) => {
+        if (shownPlanId !== planId) return
+        // No plan file (it can be deleted) — the buttons still work, which is what matters.
+        approvePlan.replaceChildren(...(text ? [planLabel(), renderMarkdown(text)] : []))
+        if (text) scrollback.withPin(() => {})
+      })
+      .catch(() => {})
+  }
+
+  function planLabel() {
+    const label = document.createElement('div')
+    label.className = 'plan-label'
+    label.textContent = 'plan · ждёт ответа'
+    return label
   }
 
   /* ---------- the one panel ---------- */
