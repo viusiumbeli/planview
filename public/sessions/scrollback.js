@@ -18,6 +18,9 @@ const CONFIDENCE_NOTE = {
  */
 export function createScrollback({ container, past, topSentinel, pill, note }) {
   let sid = null
+  let pendingPlanId = null
+  let loading = false
+  let loadToken = 0
   let events = null
   let nextBefore = null
   let hasMore = false
@@ -80,6 +83,10 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
   function planElement(row) {
     const card = document.createElement('div')
     card.className = 'plan-card'
+    card.dataset.planId = row.plan.planId ?? ''
+    // While a plan is waiting for an answer it lives next to the buttons, so the feed's own copy
+    // would be the same text twice in one scroll.
+    if (row.plan.planId && row.plan.planId === pendingPlanId) card.hidden = true
 
     const label = document.createElement('div')
     label.className = 'plan-label'
@@ -117,7 +124,7 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
 
   /* ---------- loading ---------- */
 
-  async function loadNewest() {
+  async function loadNewest(token = loadToken) {
     let page
     try {
       page = await api.history(sid, { limit: 100 })
@@ -134,6 +141,7 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
     note.hidden = !CONFIDENCE_NOTE[confidence]
     note.textContent = CONFIDENCE_NOTE[confidence] ?? ''
 
+    if (token !== loadToken) return false
     for (const entry of page.entries) past.append(entryElement(entry))
     observer.observe(topSentinel)
     return true
@@ -189,7 +197,11 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
 
   return {
     async show(nextSid) {
-      if (nextSid === sid && events) return
+      // `events` is only set once the first page has loaded, so without the loading flag a second
+      // show() during that await would render the whole transcript again — the feed came up tripled.
+      if (nextSid === sid && (events || loading)) return
+      const token = ++loadToken
+      loading = true
       sid = nextSid
       events?.close()
       events = null
@@ -200,8 +212,14 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
       nextBefore = null
       hasMore = false
 
-      if (!sid) return
-      const loaded = await loadNewest()
+      if (!sid) {
+        loading = false
+        return
+      }
+      const loaded = await loadNewest(token)
+      loading = false
+      // A newer show() (another session) started while this page was in flight; its render wins.
+      if (token !== loadToken) return
       scrollToBottom()
       if (loaded) openStream()
     },
@@ -209,6 +227,15 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
     hide() {
       events?.close()
       events = null
+    },
+
+    /** Which plan is currently shown with the approve buttons, and so hidden in the feed. */
+    setPendingPlan(planId) {
+      if (planId === pendingPlanId) return
+      pendingPlanId = planId
+      for (const card of past.querySelectorAll('.plan-card[data-plan-id]')) {
+        card.hidden = Boolean(card.dataset.planId) && card.dataset.planId === pendingPlanId
+      }
     },
 
     /** Keyboard scrolling, for when every other key belongs to the terminal. */
