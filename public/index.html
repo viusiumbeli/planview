@@ -39,7 +39,8 @@
         </header>
 
         <div id="screen-wrap">
-          <div id="term-scroll">
+          <!-- tabindex so the feed can take focus and be scrolled by the keyboard, natively. -->
+          <div id="term-scroll" tabindex="0">
             <!-- Whose past this is, stated where the past begins. -->
             <div id="feed-note" hidden></div>
             <div id="past"><div id="past-top"></div></div>
@@ -53,7 +54,7 @@
                 <div id="approve-buttons"></div>
               </div>
             </div>
-            <pre id="frame" tabindex="-1"></pre>
+            <pre id="frame"></pre>
           </div>
           <!-- Only speaks up when the mirror is behind or reconnecting. -->
           <div id="frame-status" hidden></div>
@@ -61,22 +62,21 @@
         </div>
 
         <form id="composer">
-          <!-- One question — what happens when I press a key — answered in one place. -->
-          <div id="input-mode">
-            <button id="mode-message" type="button" class="mode-key">✎ сообщение</button>
-            <button id="mode-keys" type="button" class="mode-key">⌨ клавиши</button>
-          </div>
           <textarea
             id="composer-input"
             rows="1"
             placeholder="Написать в эту сессию — Enter отправляет, Shift+Enter переносит строку"
           ></textarea>
-          <div id="keys-strip" hidden></div>
-          <div id="quick-keys">
-            <button id="key-esc" type="button" class="chip danger" title="послать Escape">Esc</button>
-            <button id="key-ctrlc" type="button" class="chip danger" title="послать Ctrl+C">^C</button>
+          <!-- One click, one keystroke into the terminal: what a menu on its screen needs. -->
+          <div id="key-pad">
+            <button id="key-up" type="button" class="chip" title="выбрать вариант выше">↑</button>
+            <button id="key-down" type="button" class="chip" title="выбрать вариант ниже">↓</button>
+            <button id="key-enter" type="button" class="chip" title="подтвердить выбор">⏎</button>
+            <button id="key-esc" type="button" class="chip danger" title="прервать или закрыть (Escape)">Esc</button>
+            <button id="key-ctrlc" type="button" class="chip danger" title="остановить (Ctrl+C)">^C</button>
+            <button id="key-shift-tab" type="button" class="chip" title="сменить режим прав (Shift+Tab)">⇧⇥</button>
           </div>
-          <button id="composer-send" type="submit">⏎</button>
+          <button id="composer-send" type="submit">отправить</button>
         </form>
         <div id="composer-note"></div>
       </section>

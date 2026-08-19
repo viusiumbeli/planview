@@ -334,14 +334,12 @@
   color: var(--waiting);
 }
 
-.chip.raw-on {
-  background: var(--waiting);
-  border-color: var(--waiting);
-  color: #fff;
-  font-weight: 700;
-}
-
 /* The unified feed: transcript log above, live frame below, ONE scroll container. */
+
+#term-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 
 #term-scroll {
   flex: 1;
@@ -534,11 +532,6 @@
   outline: none;
 }
 
-#frame.raw-on {
-  border: 2px solid var(--waiting);
-  border-radius: 8px;
-}
-
 #frame.gone {
   color: var(--fg-muted);
   font-style: italic;
@@ -589,71 +582,20 @@
   border-top: 1px solid var(--border);
 }
 
-#composer.keys-mode {
-  border-top-color: var(--waiting);
-  background: color-mix(in srgb, var(--waiting) 6%, transparent);
-}
-
 /* One question — what happens when I press a key — with one visible answer. */
-#input-mode {
+/* One click, one keystroke. Nothing to explain: the buttons are the explanation. */
+#key-pad {
   display: flex;
-  flex: none;
-  align-self: stretch;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.mode-key {
-  border: 0;
-  background: none;
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: 0.75rem;
-  padding: 0 0.6rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.mode-key.selected {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-#input-mode:has(#mode-keys.selected) {
-  border-color: var(--waiting);
-}
-
-#mode-keys.selected {
-  background: var(--waiting);
-  color: #fff;
-}
-
-#keys-strip {
-  flex: 1;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  padding: 0.55rem 0.8rem;
-  border: 1px dashed var(--waiting);
-  border-radius: 10px;
-  color: var(--waiting);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: text;
-  user-select: none;
-}
-
-#keys-strip[hidden] {
-  display: none;
-}
-
-#quick-keys {
-  display: flex;
-  gap: 0.3rem;
+  gap: 0.25rem;
   flex: none;
   align-self: center;
+}
+
+#key-pad .chip {
+  min-width: 2rem;
+  padding: 0.18rem 0.45rem;
+  text-align: center;
+  font-size: 0.78rem;
 }
 
 #composer-input {

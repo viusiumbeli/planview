@@ -63,18 +63,15 @@ before the hook existed, a live `claude` process's environment (`ps eww` → `AG
 the newest transcript for the session's directory fills in — and when it is a guess, the feed says
 so in a sentence where the past begins, instead of leaving you to trust it.
 
-The input row owns one question — what happens when you press a key — and answers it in place with
-a two-way switch. **✎ message** is a textarea: Enter sends, Shift+Enter breaks a line, and each
-newline is typed as backslash+Return, Claude Code's line continuation, so a multi-line brief lands
-in the input box as one unsubmitted message (verified against a live session; the worst possible
-failure is a visible stray backslash, never a hidden submit). **⌨ keys** hands every keystroke
-straight to the terminal — arrows, Tab, Escape — with the frame outlined in amber while it is on;
-it drops itself when you click away or after 60 s of silence. Reading the past keeps working while
-it is on: the wheel scrolls as always, and Shift+PgUp/PgDn (Shift+Home/End for the ends) scroll the
-feed instead of being forwarded — the xterm convention, so the TUI still gets its own unshifted
-PageUp and Home. `Esc` and `^C` sit beside the switch
-as one-click buttons that work in either mode. The browser only ever sends *named* key tokens; the
-escape bytes live in one server-side table, and control characters are stripped out of plain text.
+The input row is a box and a key pad, with no modes to understand. The box sends a message: Enter
+sends, Shift+Enter breaks a line, and each newline is typed as backslash+Return, Claude Code's line
+continuation, so a multi-line brief lands in the input box as one unsubmitted message (verified
+against a live session; the worst possible failure is a visible stray backslash, never a hidden
+submit). Beside it, one button per keystroke a menu on the terminal's screen needs — `↑` `↓` `⏎`
+`Esc` `^C` `⇧⇥` — each click sending exactly that key, in order, without stealing the caret from
+the box. The browser only ever names a key; the escape bytes live in one server-side table, and
+control characters are stripped out of plain text. Scrolling the feed is the browser's own: the
+wheel, or the keyboard once you click into it.
 
 Everything else stays out of the way: the session's status dot, name, directory and running command
 are one header line, the rare actions (rename, flag, clear badge, close) live behind `⋯` there, the

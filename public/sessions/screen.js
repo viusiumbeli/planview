@@ -1,23 +1,20 @@
 import { api } from '../lib/api.js'
-import { keydownToToken, scrollGesture } from '../lib/keys.js'
 import { store } from '../lib/store.js'
 
 const timeOf = (ms) =>
   new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
 /**
- * The live frame: one EventSource per shown (session, pane), frames swapped into a <pre> only
- * when they changed (the server hash-diffs, so every message IS a change), plus the raw-key mode
- * that turns the frame into a keyboard hole straight into the terminal.
+ * The live frame: one EventSource per shown (session, pane), frames swapped into a <pre> only when
+ * they changed (the server hash-diffs, so every message IS a change), plus the key pad — one click,
+ * one keystroke, which is all a menu on the terminal's screen needs.
  */
 export function createScreen({
   frame,
   statusEl,
   paneChips,
-  quickKeys,
+  keyPad,
   noteError,
-  onModeChange = () => {},
-  onScrollFeed = () => {},
   withPin = (fn) => fn(),
   getBusy = () => false,
 }) {
@@ -25,22 +22,18 @@ export function createScreen({
 
   // The feed above the frame already tells the story of everything COMPLETED, so the frame only
   // contributes its bottom: the input box while idle, plus the in-flight streaming while the agent
-  // works. Raw mode uncrops — driving a TUI needs the whole screen.
+  // works. It is never uncropped — a plan is read in full above, not as a cut-off second copy.
   const CROP_ACTIVE = 30
   const CROP_IDLE = 12
 
   let sid = null
-  let sessionName = ''
   let events = null
   let lastAt = 0
   let lastFullText = null
-  let raw = false
-  let rawIdleTimer = null
   let panes = ['left']
 
   const cropped = () => {
     if (lastFullText === null) return null
-    if (raw) return lastFullText
     const lines = lastFullText.split('\n').slice(-(getBusy() ? CROP_ACTIVE : CROP_IDLE))
     while (lines.length && !lines[0].trim()) lines.shift()
     return lines.join('\n')
@@ -138,81 +131,21 @@ export function createScreen({
     }
   }
 
-  /* ---------- raw keys ---------- */
+  /* ---------- key pad ---------- */
 
-  let queue = []
-  let flushTimer = null
   let chain = Promise.resolve()
 
-  const flush = () => {
-    flushTimer = null
-    if (!queue.length || !sid) return
-    const batch = queue
-    queue = []
-    const target = sid
-    // Serialised: the next POST waits for the previous, so keystroke order is guaranteed.
-    chain = chain
-      .then(() => api.type(target, { keys: batch }))
-      .catch((err) => noteError?.(err.message))
-  }
-
-  const enqueue = (token) => {
-    queue.push(token)
-    if (queue.length >= 16) return flush()
-    if (!flushTimer) flushTimer = setTimeout(flush, 50)
-  }
-
-  const armIdleDrop = () => {
-    clearTimeout(rawIdleTimer)
-    // A live shared buffer must not keep a silent hot mic.
-    rawIdleTimer = setTimeout(() => setRaw(false), 60_000)
-  }
-
-  function setRaw(on) {
-    raw = on
-    frame.tabIndex = on ? 0 : -1
-    frame.classList.toggle('raw-on', on)
-    if (on) {
-      // Plain focus() scrolls the frame into view, which threw the reader to the bottom of the feed
-      // the moment they switched modes while reading a plan.
-      frame.focus({ preventScroll: true })
-      armIdleDrop()
-    } else {
-      clearTimeout(rawIdleTimer)
-    }
-    // The input row owns the "what happens when I type" question, so it renders the answer.
-    onModeChange(on, sessionName)
-    // Raw mode uncrops the frame (and leaving it re-crops).
-    render()
-  }
-
-  frame.addEventListener('blur', () => setRaw(false))
-  frame.addEventListener('keydown', (event) => {
-    if (!raw) return
-    // Reading the past has to stay possible while the keyboard belongs to the terminal.
-    const gesture = scrollGesture(event)
-    if (gesture) {
-      event.preventDefault()
-      armIdleDrop()
-      onScrollFeed(gesture)
-      return
-    }
-    // Escape passes THROUGH to the terminal (it is Claude's interrupt); leaving raw mode is a
-    // click or the toggle, never a key the TUI might need.
-    const token = keydownToToken(event)
-    event.preventDefault()
-    if (token) {
-      enqueue(token)
-      armIdleDrop()
-    }
-  })
-
-  for (const [button, key] of quickKeys) {
-    // Keeping focus on the frame is what lets Esc/^C work DURING keys mode instead of ending it.
+  for (const [button, key] of keyPad) {
+    // Not stealing focus keeps the composer's caret where it was, so a menu answered mid-sentence
+    // does not cost you the sentence.
     button.addEventListener('mousedown', (event) => event.preventDefault())
     button.addEventListener('click', () => {
       if (!sid) return
-      api.type(sid, { key }).catch((err) => noteError?.(err.message))
+      const target = sid
+      // Serialised: the next POST waits for the previous, so two fast clicks keep their order.
+      chain = chain
+        .then(() => api.type(target, { key }))
+        .catch((err) => noteError?.(err.message))
     })
   }
 
@@ -222,7 +155,6 @@ export function createScreen({
     show(nextSid, node) {
       const changed = nextSid !== sid
       sid = nextSid
-      sessionName = node?.name ?? ''
       panes = ['left', ...(node?.split ? ['right'] : []), ...(node?.scratch ? ['scratch'] : [])]
       renderPanes()
       if (changed) {
@@ -230,7 +162,6 @@ export function createScreen({
         frame.classList.remove('gone')
         lastAt = 0
         lastFullText = null
-        setRaw(false)
       }
       if (changed || !events) openStream()
       tickStatus()
@@ -238,7 +169,6 @@ export function createScreen({
 
     hide() {
       closeStream()
-      setRaw(false)
       tickStatus()
     },
 
@@ -248,8 +178,5 @@ export function createScreen({
 
     /** Re-crop from the held frame — the busy hint flipped without a new frame arriving. */
     rerender: render,
-
-    setRaw,
-    rawActive: () => raw,
   }
 }

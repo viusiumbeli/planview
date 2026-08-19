@@ -59,9 +59,13 @@ export async function initSessions({ awaiting }) {
     frame: el('frame'),
     statusEl: el('frame-status'),
     paneChips: el('pane-chips'),
-    quickKeys: [
+    keyPad: [
+      [el('key-up'), 'up'],
+      [el('key-down'), 'down'],
+      [el('key-enter'), 'enter'],
       [el('key-esc'), 'escape'],
       [el('key-ctrlc'), 'ctrl-c'],
+      [el('key-shift-tab'), 'shift-tab'],
     ],
     noteError: composerNote,
     withPin: (mutate) => scrollback.withPin(mutate),
@@ -69,24 +73,14 @@ export async function initSessions({ awaiting }) {
       const node = nodeOf(viewSid)
       return Boolean(node && (node.status === 'active' || node.statusBlink))
     },
-    // The frame captures the keys, so it is the source of truth about the mode; the input row draws it.
-    onModeChange: (on, sessionName) => composer.setKeysMode(on, sessionName),
-    onScrollFeed: (gesture) => {
-      if (gesture === 'page-up') scrollback.scrollPages(-1)
-      else if (gesture === 'page-down') scrollback.scrollPages(1)
-      else scrollback.scrollEdge(gesture)
-    },
   })
 
-  const composer = createComposer({
+  createComposer({
     form: el('composer'),
     textarea: el('composer-input'),
     sendButton: el('composer-send'),
     note: el('composer-note'),
-    modeButtons: { message: el('mode-message'), keys: el('mode-keys') },
-    keysStrip: el('keys-strip'),
     getSid: () => viewSid,
-    onKeysMode: (on) => screen.setRaw(on),
   })
 
   const approveChip = createApprove({
@@ -376,7 +370,6 @@ export async function initSessions({ awaiting }) {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
     const target = event.target
     if (target.closest?.('input, textarea, [contenteditable]')) return
-    if (screen.rawActive()) return
 
     if (event.key === 'j' || event.key === 'k') {
       const ids = tree.flatIds()
