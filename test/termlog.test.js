@@ -67,7 +67,7 @@ test('a plan row hands the renderer raw markdown, not log text', () => {
 
   assert.equal(row.cls, 't-plan')
   assert.equal(row.text, md, 'no prefixes or indentation — it gets rendered as a document')
-  assert.deepEqual(row.plan, { planId: 'quiet-pebble', truncated: false })
+  assert.deepEqual(row.plan, { planId: 'quiet-pebble', truncated: false, title: 'Title' })
   assert.equal(row.more, null)
   // The plan's full text comes from /api/plan by id, so the block-fetch address is not used here.
   assert.equal(row.fetch, null)
@@ -76,7 +76,32 @@ test('a plan row hands the renderer raw markdown, not log text', () => {
 test('a truncated plan says so, so the renderer can fetch the file', () => {
   const [row] = entryRows(entry('assistant', [{ kind: 'plan', i: 2, planId: 'big', text: 'clip', truncated: true }]))
 
-  assert.deepEqual(row.plan, { planId: 'big', truncated: true })
+  assert.deepEqual(row.plan, { planId: 'big', truncated: true, title: 'big' })
+})
+
+test('a plan is named by its own first heading, so one line of log can stand for it', () => {
+  // The feed collapses a plan behind that line; scrolling back through history has to read like a
+  // terminal, not reopen every plan at full height.
+  const named = entryRows(entry('assistant', [
+    { kind: 'plan', i: 0, planId: 'quiet-pebble', text: '## Второй уровень тоже сойдёт\n\nтело', truncated: false },
+  ]))
+  assert.equal(named[0].plan.title, 'Второй уровень тоже сойдёт')
+
+  const unnamed = entryRows(entry('assistant', [
+    { kind: 'plan', i: 0, planId: 'quiet-pebble', text: 'сразу текст, без заголовка', truncated: false },
+  ]))
+  assert.equal(unnamed[0].plan.title, 'quiet-pebble', 'falls back to the plan file name')
+
+  const anonymous = entryRows(entry('assistant', [
+    { kind: 'plan', i: 0, planId: null, text: 'ни заголовка, ни файла', truncated: false },
+  ]))
+  assert.equal(anonymous[0].plan.title, 'план')
+
+  const long = entryRows(
+    entry('assistant', [{ kind: 'plan', i: 0, planId: 'x', text: `# ${'а'.repeat(200)}`, truncated: false }]),
+  )
+  assert.equal(long[0].plan.title.length, 81, 'clipped to fit a log line, with an ellipsis')
+  assert.match(long[0].plan.title, /…$/)
 })
 
 test('a server-truncated block carries its fetch address for /history/block', () => {

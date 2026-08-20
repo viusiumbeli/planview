@@ -13,6 +13,13 @@ const indent = (text, first, rest) =>
 
 const firstLine = (text) => text.split('\n', 1)[0]
 
+// What to call a plan in one line of log: its own first heading, else the plan file's name.
+const titleOf = (text, planId, limit) => {
+  const heading = text.split('\n').find((line) => /^#{1,3}\s+\S/.test(line))
+  const title = heading ? heading.replace(/^#{1,3}\s+/, '').trim() : planId || 'план'
+  return title.length > limit ? `${title.slice(0, limit).trimEnd()}…` : title
+}
+
 /**
  * @param {object} entry shaped history entry {role, ts, offset, blocks}
  * @param {object} [options]
@@ -21,16 +28,17 @@ const firstLine = (text) => text.split('\n', 1)[0]
  * @returns {Array<{cls: string, err: boolean, text: string,
  *                  more: null | {label: string, hidden: string},
  *                  fetch: null | {offset: number, block: number},
- *                  plan?: {planId: string | null, truncated: boolean}}>}
+ *                  plan?: {planId: string | null, truncated: boolean, title: string}}>}
  */
-export function entryRows(entry, { resultLines = 5, labelChars = 100 } = {}) {
+export function entryRows(entry, { resultLines = 5, labelChars = 100, titleChars = 80 } = {}) {
   const rows = []
 
   for (const block of entry.blocks ?? []) {
     const fetch = block.truncated ? { offset: entry.offset, block: block.i } : null
 
     // A plan is not log text: the row carries the raw markdown and lets the renderer draw it as a
-    // document, which is the one thing the terminal could not do well.
+    // document — but in the FEED that document is collapsed behind one line, because scrolling back
+    // through history should read like a log, not reopen every plan at full height.
     if (block.kind === 'plan') {
       rows.push({
         cls: 't-plan',
@@ -38,7 +46,11 @@ export function entryRows(entry, { resultLines = 5, labelChars = 100 } = {}) {
         text: block.text,
         more: null,
         fetch: null,
-        plan: { planId: block.planId ?? null, truncated: Boolean(block.truncated) },
+        plan: {
+          planId: block.planId ?? null,
+          truncated: Boolean(block.truncated),
+          title: titleOf(block.text, block.planId, titleChars),
+        },
       })
       continue
     }

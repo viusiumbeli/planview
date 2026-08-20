@@ -431,7 +431,7 @@
   color: var(--accent);
 }
 
-/* The plan, rendered as a document inside the terminal feed. */
+/* A plan in the feed: one line of log that opens into the document. */
 
 .plan-card {
   margin: 0.6rem 0 0.2rem;
@@ -439,6 +439,58 @@
   border-radius: 10px;
   background: var(--bg);
   overflow: hidden;
+}
+
+.plan-card > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.3rem 0.9rem;
+  background: var(--bg-elevated);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.plan-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plan-card > summary::after {
+  content: " показать";
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+}
+
+.plan-card[open] > summary {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.plan-card[open] > summary::after {
+  content: " скрыть";
+}
+
+.plan-body:not(:empty) {
+  padding: 0.9rem 0 1.4rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Prose keeps its measure, but starts at the card's edge instead of being centred — the centred
+   grid left half the width empty and read as a hole in the page. */
+.plan-card .markdown,
+#approve-plan .markdown {
+  grid-template-columns:
+    0
+    [wide-start] 0
+    [content-start] min(100%, var(--measure)) [content-end]
+    minmax(0, 6rem) [wide-end]
+    minmax(0, 1fr);
+  padding-inline: 1.1rem;
 }
 
 .plan-label {
@@ -450,13 +502,6 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--fg-muted);
-}
-
-.plan-card > div:last-child {
-  padding: 0.9rem 0 1.4rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.6;
 }
 
 .plan-card[hidden] {
@@ -493,7 +538,7 @@
 }
 
 #approve-plan .markdown {
-  padding: 0.9rem 0 1.4rem;
+  padding-block: 0.9rem 1.4rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 0.95rem;
   line-height: 1.6;

@@ -78,37 +78,46 @@ export function createScrollback({ container, past, topSentinel, pill, note }) {
     return div
   }
 
-  // A plan reads as a document, not as terminal text — tables and nested lists as markup is the
-  // one thing the terminal did badly, and the reason this page exists at all.
+  /**
+   * A plan in the feed is one line of log that opens into the document. Scrolling back through
+   * history should read like a terminal, not reopen every plan at full height — and the markdown is
+   * only parsed when someone actually opens it, so a session with a dozen plans stays cheap.
+   */
   function planElement(row) {
-    const card = document.createElement('div')
+    const card = document.createElement('details')
     card.className = 'plan-card'
     card.dataset.planId = row.plan.planId ?? ''
     // While a plan is waiting for an answer it lives next to the buttons, so the feed's own copy
     // would be the same text twice in one scroll.
     if (row.plan.planId && row.plan.planId === pendingPlanId) card.hidden = true
 
-    const label = document.createElement('div')
-    label.className = 'plan-label'
-    label.textContent = 'plan'
-    card.append(label)
+    const summary = document.createElement('summary')
+    summary.textContent = `⏺ план · ${row.plan.title}`
+    card.append(summary)
 
     const body = document.createElement('div')
-    body.append(renderMarkdown(row.text))
+    body.className = 'plan-body'
     card.append(body)
 
-    // The transcript clips a very long plan; the plan file itself has all of it.
-    if (row.plan.truncated && row.plan.planId) {
+    let rendered = false
+    card.addEventListener('toggle', () => {
+      if (!card.open || rendered) return
+      rendered = true
+      body.append(renderMarkdown(row.text))
+      // The transcript clips a very long plan; the plan file itself has all of it.
+      if (!row.plan.truncated) return
+      if (!row.plan.planId) {
+        const note = document.createElement('div')
+        note.className = 'plan-clipped'
+        note.textContent = '… план обрезан, а его файла уже нет'
+        body.append(note)
+        return
+      }
       fetch(`/api/plan?id=${encodeURIComponent(row.plan.planId)}`)
         .then((res) => (res.ok ? res.text() : null))
         .then((full) => full && body.replaceChildren(renderMarkdown(full)))
         .catch(() => {})
-    } else if (row.plan.truncated) {
-      const note = document.createElement('div')
-      note.className = 'plan-clipped'
-      note.textContent = '… plan clipped, and its file is gone'
-      card.append(note)
-    }
+    })
     return card
   }
 
