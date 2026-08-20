@@ -278,11 +278,13 @@ export async function initSessions({ awaiting }) {
       approvePlan.replaceChildren()
       shownPlanId = null
       scrollback.setPendingPlan(null)
+      screen.setMirrored(true)
       return
     }
 
     approveChip.render({ id: planId }, entry)
     scrollback.setPendingPlan(planId)
+    answerable()
     // Appearing grows the feed; if the reader was at the bottom, keep them there.
     if (wasHidden) scrollback.withPin(() => {})
     // The terminal frame only ever shows the tail of a plan, so the plan itself comes along in
@@ -297,8 +299,19 @@ export async function initSessions({ awaiting }) {
         // No plan file (it can be deleted) — the buttons still work, which is what matters.
         approvePlan.replaceChildren(...(text ? [planLabel(), renderMarkdown(text)] : []))
         if (text) scrollback.withPin(() => {})
+        answerable()
       })
-      .catch(() => {})
+      .catch(answerable)
+  }
+
+  // The frame steps aside only when the page shows BOTH the plan and the buttons; if the prompt
+  // could not be parsed (no options) or the plan is missing, the terminal is the only way to answer
+  // and must stay visible.
+  function answerable() {
+    const planId = snapshot.pendingBySession?.[viewSid]
+    const entry = awaiting.get(planId)
+    const covered = Boolean(entry?.options?.length) && approvePlan.children.length > 0
+    screen.setMirrored(!covered)
   }
 
   function planLabel() {

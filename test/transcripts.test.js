@@ -109,6 +109,30 @@ test('page shapes user text, tool calls, results and thinking into typed blocks'
   assert.equal(u3.blocks[0].isError, true)
 })
 
+test('a tool call carries what it is about, so the log can say Edit(view.js)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'planview-transcripts-'))
+  const path = join(dir, 'tools.jsonl')
+  const call = (name, input) =>
+    JSON.stringify({
+      type: 'assistant',
+      uuid: name,
+      timestamp: 't',
+      message: { role: 'assistant', content: [{ type: 'tool_use', id: 'x', name, input }] },
+    })
+  await writeFile(
+    path,
+    [
+      call('Edit', { file_path: '/Users/x/personal/planview/public/sessions/view.js', old_string: 'a' }),
+      call('Bash', { command: 'npm test\n--watch', description: 'Run tests' }),
+      call('Grep', { pattern: 'createServer' }),
+      call('Mystery', { nothing: 'useful' }),
+    ].join('\n') + '\n',
+  )
+
+  const previews = (await transcripts.page(path)).entries.map((e) => e.blocks[0].preview)
+  assert.deepEqual(previews, ['view.js', 'npm test', 'createServer', ''])
+})
+
 test('backwards pagination walks a file across chunk boundaries without losing lines', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'planview-transcripts-'))
   const path = join(dir, 'long.jsonl')

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-import { parsePrompt, keysFor } from '../src/prompt.js'
+import { parsePrompt, keysFor, promptOnScreen } from '../src/prompt.js'
 
 const UP = '\x1b[A'
 const DOWN = '\x1b[B'
@@ -27,6 +27,41 @@ const prompt = (selected = 1, labels = ['Yes, and use auto mode', 'Yes, manually
     '',
     '   ctrl+g to edit in Vim · ~/.claude/plans/some-plan.md',
   ].join('\n')
+
+const EXECUTE = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'fixtures/plan-prompt-execute.txt'),
+  'utf8',
+)
+
+test('the 2.1.x wording parses too — the title moved, the prompt did not', () => {
+  // Captured live from Claude Code 2.1.234: "Claude has written up a plan and is ready to execute."
+  // Gating on the old title alone meant the buttons never appeared on this build at all.
+  const prompt = parsePrompt(EXECUTE)
+
+  assert.deepEqual(
+    prompt.options.map((o) => o.label),
+    ['Yes, and use auto mode', 'Yes, manually approve edits', 'Tell Claude what to change'],
+  )
+  assert.equal(prompt.selected, 1)
+  assert.deepEqual(keysFor(EXECUTE, 3, 'Tell Claude what to change').keys, `${DOWN}${DOWN}\r`)
+})
+
+test('promptOnScreen sees a prompt in either wording, and none once it is answered', () => {
+  assert.equal(promptOnScreen(EXECUTE), true)
+  assert.equal(promptOnScreen(REAL), true)
+  assert.equal(promptOnScreen('~/personal/planview $ npm test\nall good\n'), false)
+  assert.equal(promptOnScreen(''), false)
+  assert.equal(promptOnScreen(null), false)
+})
+
+test('promptOnScreen is looser than parsePrompt on purpose', () => {
+  // A wording nobody knows must read as "there IS something to answer" — otherwise a caller
+  // deciding staleness throws away a live prompt, which is exactly what happened.
+  const unknownTitle = EXECUTE.replace('Claude has written up a plan and is ready to execute.', 'Brand new phrasing.')
+
+  assert.equal(parsePrompt(unknownTitle), null, 'not answerable')
+  assert.equal(promptOnScreen(unknownTitle), true, 'but still on screen')
+})
 
 test('parsePrompt reads the real captured prompt', () => {
   const parsed = parsePrompt(REAL)

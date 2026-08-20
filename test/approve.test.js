@@ -124,6 +124,50 @@ test('a prompt answered in the terminal stops being offered once the grace has p
   }
 })
 
+test('a prompt whose wording we do not know is kept — it is still on screen', async () => {
+  // The regression this guards: judging "gone" by the title deleted a live prompt 20s after the
+  // hook registered it, taking the buttons and the plan beside them with it.
+  // Both known titles have to go, and note WHY there are two in this fixture: its plan text is the
+  // plan for this very feature, so it quotes "Ready to code?" as prose. That accident is what made
+  // the original title check look like it worked.
+  const screen = READY.replaceAll('Ready to code?', 'Some brand new title').replaceAll(
+    'Claude has written up a plan and is ready to execute.',
+    'Brand new phrasing.',
+  )
+  const agterm = fakeAgterm({ screen })
+  let clock = 1_000_000
+  const server = createServer({ plansDir: FIXTURES, watch: false, agterm, now: () => clock })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  try {
+    await register(base)
+    clock += 60_000
+    const tree = await (await fetch(`${base}/api/plans`)).json()
+
+    assert.ok(tree.awaiting[PLAN], 'kept: the question is right there on screen')
+    assert.deepEqual(tree.awaiting[PLAN].options, [], 'but unanswerable until we learn the wording')
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('the 2.1.x plan prompt is offered as buttons', async () => {
+  const screen = readFileSync(join(HERE, 'fixtures/plan-prompt-execute.txt'), 'utf8')
+  const agterm = fakeAgterm({ screen })
+  await withServer(
+    async ({ base }) => {
+      await register(base)
+      const tree = await (await fetch(`${base}/api/plans`)).json()
+
+      assert.deepEqual(
+        tree.awaiting[PLAN].options.map((o) => o.label),
+        ['Yes, and use auto mode', 'Yes, manually approve edits', 'Tell Claude what to change'],
+      )
+    },
+    { agterm },
+  )
+})
+
 test('an unparseable prompt that IS on screen is kept, not dropped', async () => {
   // Two cursors make parsing refuse — it cannot know where Enter would land — but the prompt is
   // there, so the entry must survive until the screen settles.

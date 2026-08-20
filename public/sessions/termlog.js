@@ -65,11 +65,13 @@ export function entryRows(entry, { resultLines = 5, labelChars = 100 } = {}) {
     }
 
     if (block.kind === 'tool_use') {
-      const preview = firstLine(block.text).slice(0, labelChars)
+      // The server names what the call is about (a file, a command); the JSON stays behind expand.
+      const about = (block.preview ?? firstLine(block.text)).slice(0, labelChars)
+      const clipped = about.length < (block.preview ?? block.text).length
       rows.push({
         cls: 't-tool',
         err: false,
-        text: `⏺ ${block.name}(${preview}${block.text.length > preview.length ? '…' : ''})`,
+        text: `⏺ ${block.name}(${about}${clipped ? '…' : ''})`,
         more: { label: 'вход целиком', hidden: indent(block.text, '  ', '  ') },
         fetch,
       })

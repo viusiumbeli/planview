@@ -8,7 +8,7 @@ import { buildTree } from './store.js'
 import { createWatcher } from './watcher.js'
 import { createPending } from './pending.js'
 import { createAgterm } from './agterm.js'
-import { keysFor, parsePrompt, PLAN_PROMPT_TITLE } from './prompt.js'
+import { keysFor, parsePrompt, promptOnScreen } from './prompt.js'
 import { fail, readJson, sameOrigin, send } from './http.js'
 import { termRoute, wireTermEvents } from './routes/term.js'
 
@@ -47,6 +47,9 @@ export function createServer({
     for (const client of clients) client.write('data: {"type":"changed"}\n\n')
   }
 
+  // Plan ids whose prompt we have already reported as unparseable, so the log gets one line each.
+  const unreadable = new Set()
+
   const termClients = new Set()
   if (term) {
     wireTermEvents(term, termClients)
@@ -61,7 +64,7 @@ export function createServer({
         if (!term) return fail(res, 503, 'terminal control not enabled')
         return await termRoute(url, req, res, { term, pending, now, termClients })
       }
-      await route(url, req, res, { plansDir, clients, agterm, pending, now, notify })
+      await route(url, req, res, { plansDir, clients, agterm, pending, now, notify, unreadable })
     } catch (err) {
       send(res, 500, 'text/plain; charset=utf-8', String(err))
     }
@@ -89,7 +92,7 @@ export function createServer({
   return server
 }
 
-async function route(url, req, res, { plansDir, clients, agterm, pending, now, notify }) {
+async function route(url, req, res, { plansDir, clients, agterm, pending, now, notify, unreadable }) {
   if (url.pathname === '/') return sendFile(res, join(PUBLIC_DIR, 'index.html'))
 
   if (url.pathname === '/api/plans') {
@@ -109,12 +112,20 @@ async function route(url, req, res, { plansDir, clients, agterm, pending, now, n
     const prompt = screen === null ? null : parsePrompt(screen)
 
     // Answered in the terminal? Then there is nothing left to approve, and leaving the entry alive
-    // for its full TTL left the page showing buttons for a prompt that is long gone. A screen that
-    // reads fine and does not carry the prompt at all is the signal — an unparseable prompt that IS
-    // on screen stays, so a two-cursor screen can still be answered once it settles.
-    if (screen !== null && !PLAN_PROMPT_TITLE.test(screen) && at - entry.at > PROMPT_GRACE_MS) {
+    // for its full TTL left the page showing buttons for a prompt that is long gone. The signal is
+    // a screen that reads fine and carries NO prompt at all — judged by promptOnScreen, never by
+    // the title: a build that renames the title still has a live prompt to answer, and reading that
+    // as "gone" is exactly how this feature broke.
+    if (screen !== null && !promptOnScreen(screen) && at - entry.at > PROMPT_GRACE_MS) {
       pending.clear(id)
       return null
+    }
+
+    // The prompt is there but we could not read it. Silence here is how a wording change becomes a
+    // mystery — the page just says "reading the prompt…" forever — so say it once per entry.
+    if (screen !== null && !prompt && promptOnScreen(screen) && !unreadable.has(id)) {
+      unreadable.add(id)
+      log(`could not parse the prompt for planId=${id} — a new wording?`, screen)
     }
 
     // The token rides along so the page can approve; a cross-site script cannot read this response.

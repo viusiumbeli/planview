@@ -12,11 +12,33 @@
 
 // Identifies a plan approval specifically. Ordinary tool-permission prompts say "Do you want to
 // proceed?" and carry no such title.
-export const PLAN_PROMPT_TITLE = /Ready to code\?/
+//
+// BOTH wordings are real and captured: "Claude has written up a plan and is ready to execute."
+// (test/fixtures/plan-prompt-execute.txt, and line 54 of plan-prompt.txt) and "Ready to code?",
+// which some builds use.
+//
+// Worth knowing how this was found: the original check accepted only "Ready to code?" and appeared
+// to work, because the one captured fixture's PLAN TEXT quotes that phrase as prose — it is the plan
+// for this very feature. Every other plan failed the check, so the buttons never appeared. Requiring
+// a KNOWN title is still right (it keeps a tool-permission prompt from being answered as a plan),
+// but a title nobody knows must not read as "no prompt at all" — that is what `promptOnScreen` is
+// for.
+export const PLAN_PROMPT_TITLE = /Ready to code\?|Claude has written up a plan/
 // Sits immediately above the option rows. Anchoring here — rather than at the title, which is far
 // above with the whole plan in between — keeps the plan's own prose from being read as options. The
 // captured fixture contains both a "❯" and "Yes…" inside the plan text, so this matters.
 const QUESTION = /Would you like to proceed\?/
+
+/**
+ * Is an approval prompt still on screen at all? Deliberately looser than `parsePrompt`: it answers
+ * "is there something here to answer", not "can we answer it". A caller deciding whether a pending
+ * approval is stale must use THIS — judging by the title would forget a live prompt the moment a
+ * build changes its wording.
+ */
+export const promptOnScreen = (text) => {
+  const screen = String(text ?? '')
+  return QUESTION.test(screen) || PLAN_PROMPT_TITLE.test(screen)
+}
 
 // The prompt has no digit hotkeys — the list is arrow-driven — so choosing means moving the cursor
 // from where it currently sits and pressing Enter.

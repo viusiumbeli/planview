@@ -1,0 +1,60 @@
+     │ │ 2   │ Только английский контент или нет                   │ Факт про их корпус. Определяет модель и конфигурацию FTS; менять потом — переиндексация всего            │
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+   │ 2   │ Только английский контент или нет                  │ Факт про их корпус. Определяет модель и конфигурацию FTS; менять потом — переиндексация всего           │    ↑
+   ├─────┼────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ 3   │ Будет наливать свои данные или хочет seed + есть   │ Факт про его процесс проверки и про то, как они судят релевантность                                     │
+   │     │ ли у него калибровочные запросы                    │                                                                                                         │
+   ├─────┼────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ 4   │ Локальная модель или hosted API, и будет ли у него │ Факт про его окружение: сможет ли он вообще запустить артефакт                                          │
+   │     │  ключ                                              │                                                                                                         │
+   └─────┴────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+   
+   Итоговое письмо
+
+   Subject: Re: Nevis Backend Home Task — four quick questions
+
+   Hi Grigory,
+  
+   Thanks — I've got the task and I'm starting on it. Four things only you can answer:
+  
+   1. How big are the documents in practice — a page or two, or long statements and reports? That
+      decides whether content has to be split before indexing, which is the main structural choice in
+      the ingest path.
+   2. Is the content English only, or should it cope with other languages? It drives the model and
+      the text-search configuration rather than being a setting I can flip later.
+   3. When you review it, will you post your own data, or would you rather docker compose up came
+      with sample clients and documents already loaded? And if you have queries you normally
+      calibrate against, I'd rather build to those than invent my own.
+   4. Embeddings. I plan to run a small model in-process, so it works offline with no API keys. If
+      you'd prefer a hosted provider, tell me — I'd just need to know you'll have a key when you run it.
+  
+   Everything else I'll decide and write up in the README: the shape of the search response, the
+   relevance floor and what "no results" means, pagination, keeping mutations out of scope, and
+   treating content as plain text per the schema — extraction from PDFs and other formats being an
+   upstream concern.
+
+   Thanks,
+   Vladislav
+
+   Механика отправки 
+
+   - Ответом в существующий тред Rosie (reply all, получателей не менять), не новым письмом.
+     Почему: Григорий ревьюит нескольких кандидатов — в треде он сразу видит, кто ты и какое задание;
+     ответ в живой тред не попадёт в спам, в отличие от первого письма с незнакомого адреса; Rosie
+     просила быть в копии, чтобы двигать фидбек; один тред = вся история вопросов-ответов в одном
+     месте. Новый тред не даёт ничего, кроме чистой темы.
+   - Опечатка в дедлайне («by the end of 28th of July» при 7 днях от 19.08 = 26.08) — отдельным
+     письмом Rosie, в технический тред не мешать.
+   - Последний абзац письма — не отговорка, а сигнал: перечисленные там решения ты берёшь на себя.
+     Дальше их надо будет защищать на созвоне, поэтому каждое должно попасть в README с обоснованием.
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Claude has written up a plan and is ready to execute. Would you like to proceed?
+
+   ❯ 1. Yes, and use auto mode
+     2. Yes, manually approve edits                                                                    
+     3. Tell Claude what to change
+        shift+tab to approve with this feedback
+
+   ctrl+g to edit in Vim · ~/.claude/plans/foamy-sparking-quiche.md  

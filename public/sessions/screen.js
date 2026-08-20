@@ -31,6 +31,7 @@ export function createScreen({
   let lastAt = 0
   let lastFullText = null
   let panes = ['left']
+  let mirrored = true
 
   const cropped = () => {
     if (lastFullText === null) return null
@@ -178,5 +179,16 @@ export function createScreen({
 
     /** Re-crop from the held frame — the busy hint flipped without a new frame arriving. */
     rerender: render,
+
+    /**
+     * Hide the frame while the page offers the very same prompt as buttons: mirroring it too shows
+     * the question twice, with the cut-off tail of the plan and the prompt box's blank rows in
+     * between. Polling keeps running, so the frame is current the moment it comes back.
+     */
+    setMirrored(on) {
+      if (on === mirrored) return
+      mirrored = on
+      frame.hidden = !on
+    },
   }
 }

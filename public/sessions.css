@@ -537,11 +537,16 @@
   font-style: italic;
 }
 
-/* Silent while the mirror keeps up; loud the moment it falls behind. */
+#frame[hidden] {
+  display: none;
+}
+
+/* Silent while the mirror keeps up; loud the moment it falls behind. In the flow, so it never
+   covers the terminal's own text. */
 #frame-status {
-  position: absolute;
-  left: 1.5rem;
-  bottom: 1rem;
+  margin: 0 1.5rem 0.8rem;
+  align-self: flex-start;
+  width: fit-content;
   padding: 0.2rem 0.7rem;
   border: 1px solid var(--waiting);
   border-radius: 999px;

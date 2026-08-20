@@ -11,6 +11,19 @@ import { watch } from 'node:fs'
  * (mode, file-history-*, attachment, …). Sidechain entries — subagent traffic recorded into the
  * same file — are dropped too: interleaving them with the main thread reads as nonsense.
  */
+// What a tool call is ABOUT, in one line: the terminal shows `Edit(view.js)`, not the JSON. The
+// first line of a pretty-printed object is `{`, which is why the raw text made a useless label.
+const previewOf = (input) => {
+  if (!input || typeof input !== 'object') return ''
+  const path = input.file_path ?? input.path ?? input.notebook_path
+  if (typeof path === 'string' && path) return path.slice(path.lastIndexOf('/') + 1)
+  for (const key of ['command', 'pattern', 'url', 'query', 'prompt', 'description']) {
+    const value = input[key]
+    if (typeof value === 'string' && value) return value.split('\n', 1)[0]
+  }
+  return ''
+}
+
 // `~/.claude/plans/quiet-pebble.md` → `quiet-pebble`, the id /api/plan serves a plan file by.
 const planIdOf = (path) =>
   typeof path === 'string' && path.endsWith('.md') ? path.slice(path.lastIndexOf('/') + 1, -3) : null
@@ -86,6 +99,7 @@ export function createTranscripts({
               i,
               id: block.id,
               name: block.name,
+              preview: previewOf(block.input),
               ...clip(JSON.stringify(block.input ?? {}, null, 1), maxToolBytes),
             })
           }
